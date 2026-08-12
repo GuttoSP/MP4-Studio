@@ -11,8 +11,7 @@
     "start": "tsx server/index.ts",
     "test": "vitest run --maxWorkers=1 --no-file-parallelism",
     "test:all": "vitest run --maxWorkers=1 --no-file-parallelism",
-    "test:integration": "vitest run tests/ffmpegIntegration.test.ts --maxWorkers=1 --no-file-parallelism",
-    "test:e2e": "playwright test"
+    "test:integration": "vitest run tests/ffmpegIntegration.test.ts --maxWorkers=1 --no-file-parallelism"
   },
   "dependencies": {
     "express": "^5.1.0",
