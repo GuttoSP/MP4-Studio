@@ -1,6 +1,6 @@
 ## Resumo
 
-- 
+-
 
 ## Validação
 
