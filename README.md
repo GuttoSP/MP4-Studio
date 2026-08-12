@@ -1,56 +1,123 @@
-# Editor MP4
+# MP4 Studio
 
-Editor de vídeo local em React, com projetos persistidos em SQLite e renderização pelo FFmpeg instalado em `D:\AI`.
+Editor de vídeo local, responsivo e orientado a projetos. A interface é feita em React, os projetos são persistidos em SQLite e todo processamento de mídia acontece localmente pelo FFmpeg.
 
-## Abrir
+![MP4 Studio no desktop](docs/screenshots/editor-desktop.png)
+
+## Principais recursos
+
+- biblioteca de mídias com importação múltipla e arrastar/soltar;
+- suporte a MP4, WebP animado, WebP estático, PNG e JPEG;
+- preview, transporte, seek e timeline com miniaturas;
+- corte por múltiplos trechos, com remoção e reordenação;
+- mesclagem de vídeos com ordem e intervalos independentes;
+- composição lado a lado com proporção, divisor, contain/cover, pan, duração e política de áudio;
+- crop proporcional com presets 16:9, 9:16, 1:1 e 4:5;
+- rotação, espelhamento, velocidade, volume, mute, resolução, FPS e qualidade;
+- frame em PNG, JPEG ou WebP;
+- GIF animado com intervalo, largura, FPS e loop;
+- fila de render com progresso, cancelamento e download;
+- desfazer/refazer com histórico de 50 edições;
+- salvamento automático e restauração pelo SQLite;
+- interface compatível com desktop e dispositivos móveis.
+
+## Requisitos
+
+- Windows 10 ou 11;
+- Node.js 24 ou superior;
+- FFmpeg e ffprobe.
+
+Por padrão, o MP4 Studio procura os executáveis em:
+
+```text
+D:\AI\ffmpeg-shared\ffmpeg-master-latest-win64-gpl-shared\bin
+```
+
+Quando essa instalação não existe, o aplicativo tenta usar `ffmpeg` e `ffprobe` disponíveis no `PATH` do sistema.
+
+## Instalação
+
+```powershell
+git clone https://github.com/GuttoSP/MP4-Studio.git D:\projetos\editor_mp4
+cd D:\projetos\editor_mp4
+npm install
+npm run build
+```
+
+## Uso no Windows
 
 1. Dê dois cliques em `iniciar-editor.vbs`.
 2. Aguarde alguns segundos.
-3. Abra `http://127.0.0.1:43171` no navegador de sua preferência.
+3. Abra [http://127.0.0.1:43171](http://127.0.0.1:43171).
+4. Para encerrar o servidor, execute `parar-editor.vbs`.
 
-Para encerrar o servidor, dê dois cliques em `parar-editor.vbs`. Os dois atalhos trabalham sem abrir janelas de terminal.
+Os atalhos iniciam e encerram o servidor sem deixar uma janela de terminal aberta.
 
-Também é possível iniciar pelo terminal:
+Também é possível executar pelo PowerShell:
 
 ```powershell
 cd D:\projetos\editor_mp4
 npm start
 ```
 
-## Recursos
+## Fluxo básico
 
-- biblioteca por projeto com importação múltipla e arrastar/soltar;
-- MP4, WebP animado, WebP estático, PNG e JPEG;
-- preview, transporte, seek e timeline com miniaturas;
-- corte por múltiplos trechos conservados e reordenáveis;
-- mesclagem de vídeos com intervalos e ordem configuráveis;
-- composição lado a lado com proporção, divisor, contain/cover, pan, duração e política de áudio;
-- crop proporcional com presets 16:9, 9:16, 1:1 e 4:5;
-- rotação, espelhamento, velocidade, volume, mute, resolução, FPS e qualidade;
-- extração de frame em PNG, JPEG ou WebP;
-- GIF animado com intervalo, largura, FPS, loop e qualidade;
-- fila de render com progresso, cancelamento e download;
-- desfazer/refazer com histórico de 50 edições;
-- salvamento automático e restauração integral do projeto pelo SQLite;
-- layout responsivo para desktop e celular.
+1. Crie um projeto.
+2. Importe um ou mais arquivos na coluna **Mídias**.
+3. Selecione uma operação em **Ferramentas**.
+4. Ajuste a timeline, intervalos e parâmetros de saída.
+5. Clique em **Exportar MP4**, **Extrair frame** ou **Exportar GIF**.
+6. Acompanhe o progresso e use **Baixar** quando terminar.
+
+Os arquivos originais nunca são alterados. O aplicativo trabalha com cópias armazenadas no diretório local de dados.
+
+## Interface móvel
+
+O editor é responsivo e o fluxo principal já funciona em telas pequenas: biblioteca, preview, timeline, ferramentas, render e download. Como uma timeline de vídeo é naturalmente larga, ela mantém rolagem horizontal própria em celulares.
+
+<p align="center">
+  <img src="docs/screenshots/editor-mobile.png" alt="MP4 Studio em dispositivo móvel" width="390">
+</p>
 
 ## Persistência local
 
-- banco SQLite: `data\editor-mp4.sqlite3`;
-- mídias copiadas: `data\projects\<projeto>\assets`;
-- miniaturas: `data\projects\<projeto>\thumbnails`;
-- renders concluídos: `data\projects\<projeto>\renders`.
+O conteúdo do usuário fica somente na máquina local e não é rastreado pelo Git:
 
-O editor nunca altera os arquivos de origem. A pasta `data` não entra no Git.
+```text
+data/editor-mp4.sqlite3                    banco SQLite
+data/projects/<projeto>/assets             cópias das mídias importadas
+data/projects/<projeto>/thumbnails         miniaturas
+data/projects/<projeto>/renders            arquivos exportados
+```
 
-## Desenvolvimento e testes
+Além de `data/`, o `.gitignore` exclui logs, resultados de testes, builds e arquivos temporários comuns de editores.
+
+## Desenvolvimento
 
 ```powershell
-npm install
 npm run dev
 npm test
 npm run test:integration
 npm run build
 ```
 
-O frontend de desenvolvimento usa `http://127.0.0.1:43170`; a API e a versão de produção usam `http://127.0.0.1:43171`.
+- frontend de desenvolvimento: `http://127.0.0.1:43170`;
+- API e build de produção: `http://127.0.0.1:43171`.
+
+Os testes de integração geram suas próprias mídias sintéticas e validam corte, mesclagem, lado a lado, frame e GIF usando FFmpeg real.
+
+## Privacidade e segurança
+
+- nenhuma mídia é enviada para serviços externos;
+- caminhos fornecidos pelo cliente são resolvidos dentro da pasta controlada pelo projeto;
+- os comandos FFmpeg são executados sem shell;
+- arquivos, banco, logs e renders locais permanecem ignorados pelo Git;
+- futuras contribuições automatizadas devem limitar commits a arquivos explicitamente produzidos para a alteração e nunca inspecionar ou publicar conteúdo local do usuário.
+
+## Problemas e sugestões
+
+Use as [Issues do GitHub](https://github.com/GuttoSP/MP4-Studio/issues) para registrar erros reproduzíveis ou propostas de melhoria. Inclua os passos para reproduzir, o resultado esperado e o resultado observado. Não anexe vídeos privados, bancos SQLite, logs pessoais nem conteúdo de projetos reais.
+
+## Licença
+
+Consulte o arquivo [LICENSE](LICENSE).
