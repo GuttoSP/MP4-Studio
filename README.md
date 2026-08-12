@@ -1,6 +1,6 @@
 # MP4 Studio
 
-Editor de vídeo local, responsivo e orientado a projetos. A interface é feita em React, os projetos são persistidos em SQLite e todo processamento de mídia acontece localmente pelo FFmpeg.
+Editor de vídeo local e orientado a projetos. A interface é feita em React, os projetos são persistidos em SQLite e todo processamento de mídia acontece localmente pelo FFmpeg.
 
 ![MP4 Studio no desktop](docs/screenshots/editor-desktop.png)
 
@@ -19,7 +19,27 @@ Editor de vídeo local, responsivo e orientado a projetos. A interface é feita 
 - fila de render com progresso, cancelamento e download;
 - desfazer/refazer com histórico de 50 edições;
 - salvamento automático e restauração pelo SQLite;
-- interface compatível com desktop e dispositivos móveis.
+- interface desktop completa; adaptação mobile está planejada no roadmap.
+
+## Galeria de recursos
+
+As imagens abaixo foram capturadas no aplicativo em execução com um vídeo real da costa atlântica ao pôr do sol. O MP4 de demonstração não faz parte do repositório.
+
+| Corte e timeline | Mesclar vídeos |
+| --- | --- |
+| ![Corte por intervalo e timeline com miniaturas](docs/screenshots/01-corte-e-timeline-desktop.png) | ![Mesclagem de dois vídeos com ordem e intervalos](docs/screenshots/02-mesclar-videos-desktop.png) |
+
+| Lado a lado | Crop vertical |
+| --- | --- |
+| ![Composição lado a lado com divisor e pan](docs/screenshots/03-lado-a-lado-desktop.png) | ![Crop vertical com preset 4 por 5](docs/screenshots/04-crop-vertical-desktop.png) |
+
+| Extrair frame | Converter para GIF |
+| --- | --- |
+| ![Extração de frame em JPG e 1080p](docs/screenshots/05-extrair-frame-desktop.png) | ![Conversão de trecho para GIF](docs/screenshots/06-converter-gif-desktop.png) |
+
+| Ajustes de saída | Render concluído |
+| --- | --- |
+| ![Espelhamento, resolução, FPS e qualidade](docs/screenshots/07-ajustes-exportacao-desktop.png) | ![Fila com render concluído e botão para baixar](docs/screenshots/08-render-concluido-desktop.png) |
 
 ## Requisitos
 
@@ -73,11 +93,14 @@ Os arquivos originais nunca são alterados. O aplicativo trabalha com cópias ar
 
 ## Interface móvel
 
-O editor é responsivo e o fluxo principal já funciona em telas pequenas: biblioteca, preview, timeline, ferramentas, render e download. Como uma timeline de vídeo é naturalmente larga, ela mantém rolagem horizontal própria em celulares.
+A compatibilidade total com celulares ainda não está pronta. A validação em 390 × 844 encontrou overflow horizontal no shell; por isso, a captura mobile anterior foi removida e o trabalho está registrado na [issue #4](https://github.com/GuttoSP/MP4-Studio/issues/4). O desktop é a experiência recomendada nesta versão.
 
-<p align="center">
-  <img src="docs/screenshots/editor-mobile.png" alt="MP4 Studio em dispositivo móvel" width="390">
-</p>
+## Mídia da galeria
+
+- **Vídeo:** [Ocean, Sunset, Coastline](https://pixabay.com/videos/ocean-sunset-coastline-drone-174472/)
+- **Autor:** [ionela_v](https://pixabay.com/users/ionela_v-43656974/)
+- **Fonte e licença:** Pixabay, uso gratuito sob a [Pixabay Content License](https://pixabay.com/service/license-summary/)
+- **Uso neste repositório:** somente frames visíveis nos screenshots. O arquivo MP4 original e os recortes de QA permanecem fora do Git.
 
 ## Persistência local
 
