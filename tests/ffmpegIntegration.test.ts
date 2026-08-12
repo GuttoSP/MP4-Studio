@@ -1,11 +1,13 @@
 // @vitest-environment node
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildRenderCommand, type ResolvedAsset } from '../server/ffmpegCommands';
+import { generateTimelineThumbnails } from '../server/mediaAssets';
 import { metadataFromProbe, type ProbeDocument } from '../server/mediaProbe';
 import { normalizeExport } from '../shared/editorValidation';
 
@@ -47,6 +49,20 @@ beforeAll(() => {
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
 
 describe('real FFmpeg integration', () => {
+  it('extracts distinct full-frame portrait thumbnails at distinct timestamps', async () => {
+    const source = join(directory, 'portrait.mp4');
+    const output = join(directory, 'portrait-filmstrip');
+    run(['-y', '-f', 'lavfi', '-i', 'testsrc2=size=180x320:rate=24', '-t', '1.5', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', source]);
+
+    const frames = await generateTimelineThumbnails(ffmpeg, source, output, { duration: 1.5, width: 180, height: 320 });
+    const hashes = frames.map(({ fileName }) => createHash('sha256').update(readFileSync(join(output, fileName))).digest('hex'));
+
+    expect(frames).toHaveLength(12);
+    expect(new Set(frames.map(({ timestampMs }) => timestampMs)).size).toBe(frames.length);
+    expect(new Set(hashes).size).toBeGreaterThan(1);
+    expect(frames.every(({ width, height }) => height > width)).toBe(true);
+  }, 60_000);
+
   it('exports ordered exact cut ranges as playable H.264 MP4 with audio', () => {
     const output = join(directory, 'cut.mp4');
     const project = normalizeExport({ projectId, operation: 'cut', inputs: [

@@ -44,7 +44,7 @@ export class TimelineThumbnailRepository {
       const insert = this.database.prepare(`INSERT INTO timeline_thumbnails(
         asset_id, frame_index, timestamp_ms, file_name, width, height
       ) VALUES (?, ?, ?, ?, ?, ?)`);
-      for (const frame of frames.toSorted((left, right) => left.frameIndex - right.frameIndex)) {
+      for (const frame of [...frames].sort((left, right) => left.frameIndex - right.frameIndex)) {
         if (frame.assetId !== assetId) throw new Error('A thumbnail não pertence à mídia informada.');
         insert.run(frame.assetId, frame.frameIndex, frame.timestampMs, frame.fileName, frame.width, frame.height);
       }

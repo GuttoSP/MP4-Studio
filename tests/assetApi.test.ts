@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import request from 'supertest';
@@ -18,7 +18,16 @@ describe('asset API', () => {
       databasePath: ':memory:', dataRoot: root,
       mediaTools: { ffmpegPath: 'fake', ffprobePath: 'fake', check: async () => ({ ffmpeg: true, ffprobe: true }) },
       probe: async () => ({ kind: 'video', duration: 2, width: 640, height: 360, fps: 24, hasAudio: true }),
-      thumbnail: async (_input, output) => { writeFileSync(output, 'thumbnail'); }
+      thumbnail: async (_input, output) => { writeFileSync(output, 'thumbnail'); },
+      timelineThumbnails: async (_input, outputDirectory) => {
+        mkdirSync(outputDirectory, { recursive: true });
+        writeFileSync(join(outputDirectory, '000.jpg'), 'frame-zero');
+        writeFileSync(join(outputDirectory, '001.jpg'), 'frame-one');
+        return [
+          { frameIndex: 0, timestampMs: 0, fileName: '000.jpg', width: 240, height: 135 },
+          { frameIndex: 1, timestampMs: 500, fileName: '001.jpg', width: 240, height: 135 }
+        ];
+      }
     });
     const project = await request(app).post('/api/projects').send({ name: 'Importação' });
 
@@ -35,5 +44,17 @@ describe('asset API', () => {
     expect(Buffer.from(streamed.body).toString()).toBe('video-bytes');
     const storedFiles = readFileSync(join(root, 'projects', project.body.id, 'assets', `${imported.body.assets[0].id}.mp4`));
     expect(storedFiles.toString()).toBe('video-bytes');
+
+    const filmstrip = await request(app).get(`/api/assets/${imported.body.assets[0].id}/timeline-thumbnails`);
+    expect(filmstrip.status).toBe(200);
+    expect(filmstrip.body.frames).toEqual([
+      { frameIndex: 0, time: 0, width: 240, height: 135, url: `/api/assets/${imported.body.assets[0].id}/timeline-thumbnails/0` },
+      { frameIndex: 1, time: 0.5, width: 240, height: 135, url: `/api/assets/${imported.body.assets[0].id}/timeline-thumbnails/1` }
+    ]);
+    expect(JSON.stringify(filmstrip.body)).not.toContain(root);
+
+    const frame = await request(app).get(`/api/assets/${imported.body.assets[0].id}/timeline-thumbnails/1`);
+    expect(frame.status).toBe(200);
+    expect(Buffer.from(frame.body).toString()).toBe('frame-one');
   });
 });
