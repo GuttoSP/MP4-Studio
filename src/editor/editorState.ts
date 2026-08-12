@@ -32,6 +32,8 @@ export type EditorAction =
   | { type: 'add-range' }
   | { type: 'remove-range'; id: string }
   | { type: 'update-range'; id: string; start: number; end: number }
+  | { type: 'commit-range-trim'; id: string; start: number; end: number }
+  | { type: 'reorder-range'; id: string; beforeId: string }
   | { type: 'move-range'; id: string; direction: -1 | 1 }
   | { type: 'set-tab'; tab: EditorTab }
   | { type: 'set-crop'; crop: Adjustments['crop'] }
@@ -118,6 +120,28 @@ function reduce(state: EditorState, action: Exclude<EditorAction, { type: 'undo'
   }
   if (action.type === 'remove-range') return { ...state, ranges: state.ranges.filter(({ id }) => id !== action.id) };
   if (action.type === 'update-range') return { ...state, ranges: state.ranges.map((range) => range.id === action.id ? { ...range, start: action.start, end: action.end } : range) };
+  if (action.type === 'commit-range-trim') {
+    const range = state.ranges.find(({ id }) => id === action.id);
+    const asset = range && state.assets.find(({ id }) => id === range.assetId);
+    if (!range || !asset) return state;
+    const minimum = asset.fps > 0 ? 1 / asset.fps : .01;
+    const start = Math.min(Math.max(0, action.start), asset.duration - minimum);
+    const end = Math.min(asset.duration, Math.max(start + minimum, action.end));
+    return { ...state, ranges: state.ranges.map((item) => item.id === range.id ? {
+      ...item,
+      start: Math.round(start * 1000) / 1000,
+      end: Math.round(end * 1000) / 1000
+    } : item) };
+  }
+  if (action.type === 'reorder-range') {
+    const moving = state.ranges.find(({ id }) => id === action.id);
+    const target = state.ranges.find(({ id }) => id === action.beforeId);
+    if (!moving || !target || moving.id === target.id || moving.assetId !== target.assetId) return state;
+    const ranges = state.ranges.filter(({ id }) => id !== moving.id);
+    const targetIndex = ranges.findIndex(({ id }) => id === target.id);
+    ranges.splice(targetIndex, 0, moving);
+    return { ...state, ranges };
+  }
   if (action.type === 'move-range') {
     const index = state.ranges.findIndex(({ id }) => id === action.id);
     const target = index + action.direction;

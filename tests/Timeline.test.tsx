@@ -62,4 +62,24 @@ describe('Timeline filmstrip', () => {
     expect(onSeek).toHaveBeenCalledTimes(1);
     expect(onSeek).toHaveBeenLastCalledWith(2.267);
   });
+
+  it('commits trim only when a range handle is released', () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => ({ frames: [] }) } as Response);
+    const state = {
+      ...createInitialEditorHistory('project', [portraitAsset]).present,
+      ranges: [{ id: 'range-1', assetId: portraitAsset.id, start: .5, end: 2.5 }]
+    };
+    const onUpdate = vi.fn();
+    render(<Timeline state={state} asset={portraitAsset} onSeek={vi.fn()} onAdd={vi.fn()} onRemove={vi.fn()} onUpdate={onUpdate} />);
+    const track = document.querySelector('.range-track') as HTMLElement;
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({ left: 100, width: 600 } as DOMRect);
+    const handle = screen.getByRole('slider', { name: 'Início do Trecho 1' });
+
+    fireEvent.pointerDown(handle, { pointerId: 3, clientX: 200 });
+    fireEvent.pointerMove(handle, { pointerId: 3, clientX: 300 });
+    expect(onUpdate).not.toHaveBeenCalled();
+    fireEvent.pointerUp(handle, { pointerId: 3, clientX: 300 });
+    expect(onUpdate).toHaveBeenCalledOnce();
+    expect(onUpdate).toHaveBeenCalledWith('range-1', 1, 2.5);
+  });
 });

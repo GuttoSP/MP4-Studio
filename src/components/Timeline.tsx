@@ -5,7 +5,8 @@ import type { EditorAsset, TimelineThumbnail } from '../../shared/types';
 import { api } from '../api';
 import { timeFromPointer, snapTime } from './timeline/timelineMath';
 import { usePointerDrag } from '../hooks/usePointerDrag';
-import type { EditorRange, EditorState } from '../editor/editorState';
+import { TimelineClip } from './timeline/TimelineClip';
+import type { EditorState } from '../editor/editorState';
 
 const clock = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.floor(seconds % 60)).padStart(2, '0')}.${String(Math.floor(seconds * 100) % 100).padStart(2, '0')}`;
 const frameCache = new Map<string, TimelineThumbnail[]>();
@@ -17,9 +18,11 @@ type Props = {
   onZoom?: (zoom: number) => void;
   onAdd: () => void;
   onRemove: (id: string) => void;
+  onUpdate?: (id: string, start: number, end: number) => void;
+  onReorder?: (id: string, beforeId: string) => void;
 };
 
-export function Timeline({ state, asset, onSeek, onZoom, onAdd, onRemove }: Props) {
+export function Timeline({ state, asset, onSeek, onZoom, onAdd, onRemove, onUpdate, onReorder }: Props) {
   const duration = Math.max(asset?.duration ?? 1, 1);
   const scoped = state.ranges.filter((range) => range.assetId === asset?.id);
   const markers = [0, .2, .4, .6, .8, 1];
@@ -98,13 +101,18 @@ export function Timeline({ state, asset, onSeek, onZoom, onAdd, onRemove }: Prop
           {filmstripStatus === 'loading' && <span className="timeline-filmstrip-message">Gerando quadros…</span>}
           {filmstripStatus === 'error' && <span className="timeline-filmstrip-message">Não foi possível carregar os quadros.</span>}
         </div> : <div className="thumbnail-strip empty" />}
-        <div className="range-track">{scoped.map((range, index) => <RangeBlock range={range} duration={duration} index={index} key={range.id} onRemove={onRemove} />)}</div>
+        <div className="range-track">{scoped.map((range, index) => <TimelineClip
+          range={range}
+          duration={duration}
+          fps={asset?.fps ?? 0}
+          index={index}
+          key={range.id}
+          onRemove={onRemove}
+          onTrim={(id, start, end) => onUpdate?.(id, start, end)}
+          onReorder={(id, beforeId) => onReorder?.(id, beforeId)}
+        />)}</div>
         <div className="playhead" role="slider" aria-label="Posição do playhead" aria-valuemin={0} aria-valuemax={duration} aria-valuenow={displayedTime} style={{ left: `${displayedTime / duration * 100}%` }}><span>{clock(displayedTime)}</span></div>
       </div>
     </div>
   </section>;
-}
-
-function RangeBlock({ range, duration, index, onRemove }: { range: EditorRange; duration: number; index: number; onRemove: (id: string) => void }) {
-  return <button type="button" className="range-block" style={{ left: `${range.start / duration * 100}%`, width: `${(range.end - range.start) / duration * 100}%` }} onDoubleClick={() => onRemove(range.id)}><i /><strong>Trecho {index + 1}</strong><span>{clock(range.start)} — {clock(range.end)}</span><i /></button>;
 }

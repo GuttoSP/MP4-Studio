@@ -18,6 +18,22 @@ describe('editorReducer', () => {
     history = editorReducer(history, { type: 'set-timeline-zoom', zoom: 9 });
     expect(history.present.timelineZoom).toBe(4);
   });
+  it('trims and reorders ranges atomically', () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('22222222-2222-4222-8222-222222222222')
+      .mockReturnValueOnce('33333333-3333-4333-8333-333333333333');
+    let history = createInitialEditorHistory(asset.projectId, [asset]);
+    history = editorReducer(history, { type: 'set-markers', markIn: 1, markOut: 5 });
+    history = editorReducer(history, { type: 'add-range' });
+    history = editorReducer(history, { type: 'set-markers', markIn: 8, markOut: 12 });
+    history = editorReducer(history, { type: 'add-range' });
+    const beforeTrimHistory = history.past.length;
+    history = editorReducer(history, { type: 'commit-range-trim', id: history.present.ranges[0].id, start: 2, end: 6 });
+    expect(history.present.ranges[0]).toMatchObject({ start: 2, end: 6 });
+    expect(history.past).toHaveLength(beforeTrimHistory + 1);
+    history = editorReducer(history, { type: 'reorder-range', id: history.present.ranges[1].id, beforeId: history.present.ranges[0].id });
+    expect(history.present.ranges.map(({ start }) => start)).toEqual([8, 2]);
+  });
   it('adds the marked interval and exports ranges in displayed order', () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('22222222-2222-4222-8222-222222222222')
