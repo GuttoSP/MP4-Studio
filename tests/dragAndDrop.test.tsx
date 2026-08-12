@@ -37,4 +37,19 @@ describe('editor drag and drop', () => {
     fireEvent.drop(screen.getByRole('button', { name: 'Soltar mídia no lado direito' }), { dataTransfer });
     expect(onSideDrop).toHaveBeenCalledWith('right', right.id);
   });
+
+  it('drags the side-by-side divider and commits once on release', () => {
+    const state = { ...createInitialEditorHistory('p', [left, right]).present, tab: 'side-by-side' as const };
+    const onDividerCommit = vi.fn();
+    render(<PreviewMonitor state={state} selected={left} left={left} right={right} onTime={vi.fn()} onDividerCommit={onDividerCommit} />);
+    const stage = document.querySelector('.monitor-stage') as HTMLElement;
+    vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue({ left: 100, width: 500 } as DOMRect);
+    const divider = screen.getByRole('slider', { name: 'Divisor lado a lado' });
+    fireEvent.pointerDown(divider, { pointerId: 5, clientX: 350 });
+    fireEvent.pointerMove(divider, { pointerId: 5, clientX: 450 });
+    expect(onDividerCommit).not.toHaveBeenCalled();
+    fireEvent.pointerUp(divider, { pointerId: 5, clientX: 450 });
+    expect(onDividerCommit).toHaveBeenCalledOnce();
+    expect(onDividerCommit).toHaveBeenCalledWith(.7);
+  });
 });
