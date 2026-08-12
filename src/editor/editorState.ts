@@ -34,6 +34,7 @@ export type EditorAction =
   | { type: 'update-range'; id: string; start: number; end: number }
   | { type: 'commit-range-trim'; id: string; start: number; end: number }
   | { type: 'reorder-range'; id: string; beforeId: string }
+  | { type: 'insert-range'; assetId: string }
   | { type: 'move-range'; id: string; direction: -1 | 1 }
   | { type: 'set-tab'; tab: EditorTab }
   | { type: 'set-crop'; crop: Adjustments['crop'] }
@@ -141,6 +142,18 @@ function reduce(state: EditorState, action: Exclude<EditorAction, { type: 'undo'
     const targetIndex = ranges.findIndex(({ id }) => id === target.id);
     ranges.splice(targetIndex, 0, moving);
     return { ...state, ranges };
+  }
+  if (action.type === 'insert-range') {
+    const asset = state.assets.find(({ id }) => id === action.assetId);
+    if (!asset || asset.kind === 'image') return state;
+    return {
+      ...state,
+      selectedAssetId: asset.id,
+      currentTime: 0,
+      markIn: 0,
+      markOut: asset.duration,
+      ranges: [...state.ranges, { id: crypto.randomUUID(), assetId: asset.id, start: 0, end: asset.duration }]
+    };
   }
   if (action.type === 'move-range') {
     const index = state.ranges.findIndex(({ id }) => id === action.id);

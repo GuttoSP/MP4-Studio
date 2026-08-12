@@ -6,6 +6,7 @@ import { api } from '../api';
 import { timeFromPointer, snapTime } from './timeline/timelineMath';
 import { usePointerDrag } from '../hooks/usePointerDrag';
 import { TimelineClip } from './timeline/TimelineClip';
+import { ASSET_DRAG_MIME } from './MediaLibrary';
 import type { EditorState } from '../editor/editorState';
 
 const clock = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.floor(seconds % 60)).padStart(2, '0')}.${String(Math.floor(seconds * 100) % 100).padStart(2, '0')}`;
@@ -20,9 +21,10 @@ type Props = {
   onRemove: (id: string) => void;
   onUpdate?: (id: string, start: number, end: number) => void;
   onReorder?: (id: string, beforeId: string) => void;
+  onAssetDrop?: (assetId: string) => void;
 };
 
-export function Timeline({ state, asset, onSeek, onZoom, onAdd, onRemove, onUpdate, onReorder }: Props) {
+export function Timeline({ state, asset, onSeek, onZoom, onAdd, onRemove, onUpdate, onReorder, onAssetDrop }: Props) {
   const duration = Math.max(asset?.duration ?? 1, 1);
   const scoped = state.ranges.filter((range) => range.assetId === asset?.id);
   const markers = [0, .2, .4, .6, .8, 1];
@@ -88,6 +90,12 @@ export function Timeline({ state, asset, onSeek, onZoom, onAdd, onRemove, onUpda
         className="timeline-canvas"
         data-testid="timeline-canvas"
         style={{ width: `${state.timelineZoom * 100}%` }}
+        onDragOver={(event) => { if (event.dataTransfer.types.includes(ASSET_DRAG_MIME)) event.preventDefault(); }}
+        onDrop={(event) => {
+          event.preventDefault();
+          const assetId = event.dataTransfer.getData(ASSET_DRAG_MIME);
+          if (assetId) onAssetDrop?.(assetId);
+        }}
         {...scrub}
       >
         <div className="ruler">{markers.map((position) => <span style={{ left: `${position * 100}%` }} key={position}>{clock(duration * position)}</span>)}</div>

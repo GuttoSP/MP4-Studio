@@ -2,12 +2,13 @@ import { Camera, Maximize, Pause, Play, SkipBack, SkipForward, Volume2 } from 'l
 import { useEffect, useRef, useState } from 'react';
 import type { EditorAsset } from '../../shared/types';
 import type { EditorState } from '../editor/editorState';
+import { ASSET_DRAG_MIME } from './MediaLibrary';
 
 const clock = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.floor(seconds % 60)).padStart(2, '0')}.${String(Math.floor(seconds * 100) % 100).padStart(2, '0')}`;
 
-type Props = { state: EditorState; selected?: EditorAsset; left?: EditorAsset; right?: EditorAsset; onTime: (time: number) => void };
+type Props = { state: EditorState; selected?: EditorAsset; left?: EditorAsset; right?: EditorAsset; onTime: (time: number) => void; onSideDrop?: (side: 'left' | 'right', assetId: string) => void };
 
-export function PreviewMonitor({ state, selected, left, right, onTime }: Props) {
+export function PreviewMonitor({ state, selected, left, right, onTime, onSideDrop }: Props) {
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   useEffect(() => { if (video.current && Math.abs(video.current.currentTime - state.currentTime) > 0.3) video.current.currentTime = state.currentTime; }, [state.currentTime]);
@@ -22,6 +23,19 @@ export function PreviewMonitor({ state, selected, left, right, onTime }: Props) 
           <video className="main-media" ref={video} src={`/api/assets/${selected.id}/content`} poster={`/api/assets/${selected.id}/thumbnail`} preload="metadata" style={{ transform }} onTimeUpdate={(event) => onTime(event.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
       ) : <div className="monitor-empty"><FilmFallback /><span>Importe um vídeo para começar</span></div>}
       {state.tab === 'crop' && selected && <div className="crop-preview-overlay" aria-hidden="true"><i style={{ left: `${state.adjustments.crop.x * 100}%`, top: `${state.adjustments.crop.y * 100}%`, width: `${state.adjustments.crop.width * 100}%`, height: `${state.adjustments.crop.height * 100}%` }} /></div>}
+      {state.tab === 'side-by-side' && <div className="side-drop-zones">
+        {(['left', 'right'] as const).map((side) => <button
+          type="button"
+          key={side}
+          aria-label={`Soltar mídia no lado ${side === 'left' ? 'esquerdo' : 'direito'}`}
+          onDragOver={(event) => { if (event.dataTransfer.types.includes(ASSET_DRAG_MIME)) event.preventDefault(); }}
+          onDrop={(event) => {
+            event.preventDefault();
+            const assetId = event.dataTransfer.getData(ASSET_DRAG_MIME);
+            if (assetId) onSideDrop?.(side, assetId);
+          }}
+        ><span>{side === 'left' ? 'Esquerda' : 'Direita'}</span><small>Solte a mídia aqui</small></button>)}
+      </div>}
     </div>
     <div className="transport"><strong>{clock(state.currentTime)}</strong><span>/ {clock(selected?.duration ?? 0)}</span><div><button aria-label="Início" onClick={() => { onTime(0); if (video.current) video.current.currentTime = 0; }}><SkipBack /></button><button className="play" aria-label={playing ? 'Pausar' : 'Reproduzir'} onClick={() => video.current && (video.current.paused ? void video.current.play() : video.current.pause())}>{playing ? <Pause /> : <Play />}</button><button aria-label="Fim" onClick={() => { const duration = selected?.duration ?? 0; onTime(duration); if (video.current) video.current.currentTime = duration; }}><SkipForward /></button></div><div className="transport-end"><Camera /><Volume2 /><Maximize /></div></div>
   </section>;
