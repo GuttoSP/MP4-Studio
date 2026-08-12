@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditorAsset } from '../shared/types';
 import { Timeline } from '../src/components/Timeline';
@@ -45,5 +45,21 @@ describe('Timeline filmstrip', () => {
     expect(screen.getByTestId('timeline-frame-0')).toHaveStyle({ aspectRatio: '108 / 192' });
     expect(frames[0]).toHaveClass('timeline-frame-image');
     expect(frames.every((frame) => frame.getAttribute('src') !== `/api/assets/${portraitAsset.id}/thumbnail`)).toBe(true);
+  });
+
+  it('scrubs by pointer and commits a snapped playhead time', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => ({ frames: [] }) } as Response);
+    const state = createInitialEditorHistory('project', [portraitAsset]).present;
+    const onSeek = vi.fn();
+    render(<Timeline state={state} asset={portraitAsset} onSeek={onSeek} onAdd={vi.fn()} onRemove={vi.fn()} />);
+    const canvas = screen.getByTestId('timeline-canvas');
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 100, width: 600 } as DOMRect);
+
+    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 400 });
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 550 });
+    fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 550 });
+
+    expect(onSeek).toHaveBeenCalledTimes(1);
+    expect(onSeek).toHaveBeenLastCalledWith(2.267);
   });
 });

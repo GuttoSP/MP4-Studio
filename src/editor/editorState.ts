@@ -7,6 +7,7 @@ export type EditorState = {
   assets: EditorAsset[];
   selectedAssetId: string;
   currentTime: number;
+  timelineZoom: number;
   markIn: number;
   markOut: number;
   tab: EditorTab;
@@ -26,6 +27,7 @@ export type EditorAction =
   | { type: 'hydrate'; projectId: string; assets: EditorAsset[]; state?: Partial<EditorState> }
   | { type: 'select-asset'; assetId: string }
   | { type: 'set-current-time'; time: number }
+  | { type: 'set-timeline-zoom'; zoom: number }
   | { type: 'set-markers'; markIn: number; markOut: number }
   | { type: 'add-range' }
   | { type: 'remove-range'; id: string }
@@ -51,7 +53,7 @@ function initialState(projectId: string, assets: EditorAsset[]): EditorState {
   const selected = assets.find((asset) => asset.kind !== 'image') ?? assets[0];
   const videos = assets.filter((asset) => asset.kind !== 'image');
   return {
-    projectId, assets, selectedAssetId: selected?.id ?? '', currentTime: 0, markIn: 0, markOut: selected?.duration ?? 0,
+    projectId, assets, selectedAssetId: selected?.id ?? '', currentTime: 0, timelineZoom: 1, markIn: 0, markOut: selected?.duration ?? 0,
     tab: 'cut', ranges: [], mergeOrder: videos.map(({ id }) => id),
     mergeRanges: Object.fromEntries(videos.map((asset) => [asset.id, { start: 0, end: asset.duration }])),
     sideLeftAssetId: assets[0]?.id ?? '', sideRightAssetId: assets[1]?.id ?? '',
@@ -85,6 +87,7 @@ function reduce(state: EditorState, action: Exclude<EditorAction, { type: 'undo'
       assets: action.assets,
       selectedAssetId,
       currentTime: persistedSelection ? action.state.currentTime ?? fresh.currentTime : fresh.currentTime,
+      timelineZoom: Math.min(4, Math.max(1, action.state.timelineZoom ?? fresh.timelineZoom)),
       markIn: persistedSelection ? action.state.markIn ?? fresh.markIn : fresh.markIn,
       markOut: persistedSelection ? action.state.markOut ?? fresh.markOut : fresh.markOut,
       ranges: (action.state.ranges ?? fresh.ranges).filter(({ assetId }) => assetIds.has(assetId)),
@@ -106,6 +109,7 @@ function reduce(state: EditorState, action: Exclude<EditorAction, { type: 'undo'
     return asset ? { ...state, selectedAssetId: asset.id, currentTime: 0, markIn: 0, markOut: asset.duration, gif: { ...state.gif, start: 0, end: Math.min(asset.duration, 5) } } : state;
   }
   if (action.type === 'set-current-time') return { ...state, currentTime: Math.max(0, action.time) };
+  if (action.type === 'set-timeline-zoom') return { ...state, timelineZoom: Math.min(4, Math.max(1, action.zoom)) };
   if (action.type === 'set-markers') return { ...state, markIn: Math.max(0, action.markIn), markOut: Math.max(0, action.markOut) };
   if (action.type === 'add-range') {
     const asset = selectedAsset(state);

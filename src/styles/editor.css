@@ -79,3 +79,32 @@
   color: var(--muted);
   font-size: 11px;
 }
+.timeline-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 14px 12px;
+}
+.timeline-canvas {
+  position: relative;
+  min-width: 612px;
+  padding-top: 28px;
+  box-sizing: border-box;
+  touch-action: none;
+  user-select: none;
+  cursor: col-resize;
+}
+.timeline-canvas .ruler {
+  left: 0;
+  right: 0;
+}
+.timeline-canvas .thumbnail-strip,
+.timeline-canvas .range-track {
+  cursor: col-resize;
+}
+.playhead {
+  transition: left 40ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .playhead { transition: none; }
+}

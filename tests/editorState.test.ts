@@ -10,6 +10,14 @@ const asset: EditorAsset = {
 };
 
 describe('editorReducer', () => {
+  it('persists timeline zoom as one undoable edit', () => {
+    let history = createInitialEditorHistory(asset.projectId, [asset]);
+    history = editorReducer(history, { type: 'set-timeline-zoom', zoom: 2.5 });
+    expect(history.present.timelineZoom).toBe(2.5);
+    expect(history.past).toHaveLength(1);
+    history = editorReducer(history, { type: 'set-timeline-zoom', zoom: 9 });
+    expect(history.present.timelineZoom).toBe(4);
+  });
   it('adds the marked interval and exports ranges in displayed order', () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('22222222-2222-4222-8222-222222222222')

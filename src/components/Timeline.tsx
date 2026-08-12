@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Crop, Minus, Plus, Scissors, Trash2 } from 'lucide-react';
 import type { EditorAsset, TimelineThumbnail } from '../../shared/types';
 import { api } from '../api';
+import { timeFromPointer, snapTime } from './timeline/timelineMath';
+import { usePointerDrag } from '../hooks/usePointerDrag';
 import type { EditorRange, EditorState } from '../editor/editorState';
 
 const clock = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.floor(seconds % 60)).padStart(2, '0')}.${String(Math.floor(seconds * 100) % 100).padStart(2, '0')}`;
@@ -11,16 +14,19 @@ type Props = {
   state: EditorState;
   asset?: EditorAsset;
   onSeek: (time: number) => void;
+  onZoom?: (zoom: number) => void;
   onAdd: () => void;
   onRemove: (id: string) => void;
 };
 
-export function Timeline({ state, asset, onSeek, onAdd, onRemove }: Props) {
+export function Timeline({ state, asset, onSeek, onZoom, onAdd, onRemove }: Props) {
   const duration = Math.max(asset?.duration ?? 1, 1);
   const scoped = state.ranges.filter((range) => range.assetId === asset?.id);
   const markers = [0, .2, .4, .6, .8, 1];
   const [frames, setFrames] = useState<TimelineThumbnail[]>([]);
   const [filmstripStatus, setFilmstripStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [draftTime, setDraftTime] = useState<number | null>(null);
+  const displayedTime = draftTime ?? state.currentTime;
 
   useEffect(() => {
     let active = true;
@@ -48,11 +54,20 @@ export function Timeline({ state, asset, onSeek, onAdd, onRemove }: Props) {
     return () => { active = false; };
   }, [asset]);
 
-  const seekFromPointer = (clientX: number, element: HTMLElement) => {
-    const box = element.getBoundingClientRect();
-    const ratio = box.width ? Math.min(1, Math.max(0, (clientX - box.left) / box.width)) : 0;
-    onSeek(ratio * duration);
+  const pointerTime = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    return snapTime(timeFromPointer(event.clientX, box.left, box.width, duration), asset?.fps ?? 0, duration);
   };
+  const scrub = usePointerDrag<HTMLDivElement>({
+    onStart: (event) => setDraftTime(pointerTime(event)),
+    onMove: (event) => setDraftTime(pointerTime(event)),
+    onCommit: (event) => {
+      const time = pointerTime(event);
+      setDraftTime(null);
+      onSeek(time);
+    }
+  });
+  const setZoom = (zoom: number) => onZoom?.(Math.min(4, Math.max(1, Number(zoom.toFixed(2)))));
 
   return <section className="timeline" aria-label="Timeline">
     <div className="timeline-tools">
@@ -61,39 +76,31 @@ export function Timeline({ state, asset, onSeek, onAdd, onRemove }: Props) {
       <button aria-label="Crop"><Crop /></button>
       <button aria-label="Adicionar trecho" onClick={onAdd}><Plus /></button>
       <span />
-      <button aria-label="Diminuir zoom"><Minus /></button>
-      <input aria-label="Zoom da timeline" type="range" min="1" max="4" defaultValue="1" />
-      <button aria-label="Aumentar zoom"><Plus /></button>
+      <button aria-label="Diminuir zoom" onClick={() => setZoom(state.timelineZoom - .25)}><Minus /></button>
+      <input aria-label="Zoom da timeline" type="range" min="1" max="4" step=".25" value={state.timelineZoom} onChange={(event) => setZoom(Number(event.target.value))} />
+      <button aria-label="Aumentar zoom" onClick={() => setZoom(state.timelineZoom + .25)}><Plus /></button>
     </div>
     <div className="timeline-scroll">
-      <div className="ruler">{markers.map((position) => <span style={{ left: `${position * 100}%` }} key={position}>{clock(duration * position)}</span>)}</div>
-      {asset ? <button
-        aria-label="Navegar pelos quadros do vídeo"
-        className="thumbnail-strip"
-        data-status={filmstripStatus}
-        type="button"
-        onClick={(event) => seekFromPointer(event.clientX, event.currentTarget)}
+      <div
+        className="timeline-canvas"
+        data-testid="timeline-canvas"
+        style={{ width: `${state.timelineZoom * 100}%` }}
+        {...scrub}
       >
-        {frames.map((frame) => <span className="timeline-frame-slot" key={frame.frameIndex}>
-          <span
-            className="timeline-frame"
-            data-testid={`timeline-frame-${frame.frameIndex}`}
-            style={{ aspectRatio: `${frame.width} / ${frame.height}` }}
-          >
-            <img
-              className="timeline-frame-image"
-              src={frame.url}
-              alt={`Quadro em ${clock(frame.time)}`}
-              draggable={false}
-            />
-            <small>{clock(frame.time)}</small>
-          </span>
-        </span>)}
-        {filmstripStatus === 'loading' && <span className="timeline-filmstrip-message">Gerando quadros…</span>}
-        {filmstripStatus === 'error' && <span className="timeline-filmstrip-message">Não foi possível carregar os quadros.</span>}
-      </button> : <div className="thumbnail-strip empty" />}
-      <div className="range-track">{scoped.map((range, index) => <RangeBlock range={range} duration={duration} index={index} key={range.id} onRemove={onRemove} />)}</div>
-      <div className="playhead" style={{ left: `${state.currentTime / duration * 100}%` }}><span>{clock(state.currentTime)}</span></div>
+        <div className="ruler">{markers.map((position) => <span style={{ left: `${position * 100}%` }} key={position}>{clock(duration * position)}</span>)}</div>
+        {asset ? <div aria-label="Navegar pelos quadros do vídeo" className="thumbnail-strip" data-status={filmstripStatus} role="button" tabIndex={0}>
+          {frames.map((frame) => <span className="timeline-frame-slot" key={frame.frameIndex}>
+            <span className="timeline-frame" data-testid={`timeline-frame-${frame.frameIndex}`} style={{ aspectRatio: `${frame.width} / ${frame.height}` }}>
+              <img className="timeline-frame-image" src={frame.url} alt={`Quadro em ${clock(frame.time)}`} draggable={false} />
+              <small>{clock(frame.time)}</small>
+            </span>
+          </span>)}
+          {filmstripStatus === 'loading' && <span className="timeline-filmstrip-message">Gerando quadros…</span>}
+          {filmstripStatus === 'error' && <span className="timeline-filmstrip-message">Não foi possível carregar os quadros.</span>}
+        </div> : <div className="thumbnail-strip empty" />}
+        <div className="range-track">{scoped.map((range, index) => <RangeBlock range={range} duration={duration} index={index} key={range.id} onRemove={onRemove} />)}</div>
+        <div className="playhead" role="slider" aria-label="Posição do playhead" aria-valuemin={0} aria-valuemax={duration} aria-valuenow={displayedTime} style={{ left: `${displayedTime / duration * 100}%` }}><span>{clock(displayedTime)}</span></div>
+      </div>
     </div>
   </section>;
 }
