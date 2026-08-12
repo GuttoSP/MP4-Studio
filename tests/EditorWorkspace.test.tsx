@@ -39,6 +39,9 @@ describe('EditorWorkspace', () => {
     const firstResponse = new Promise<Response>((resolve) => { resolveFirst = resolve; });
     const requests: Array<{ expectedRevision: number; state: { tab: string } }> = [];
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      if (!init?.method || init.method === 'GET') {
+        return { ok: true, json: async () => ({ frames: [] }) } as Response;
+      }
       const body = JSON.parse(String(init?.body)) as { expectedRevision: number; state: { tab: string } };
       requests.push(body);
       if (requests.length === 1) return firstResponse;
@@ -49,16 +52,16 @@ describe('EditorWorkspace', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Mesclar' }));
     await act(async () => { vi.advanceTimersByTime(400); });
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(requests).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Crop' }));
     await act(async () => { vi.advanceTimersByTime(400); });
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(requests).toHaveLength(1);
 
     resolveFirst({ ok: true, json: async () => ({ ...project, revision: 1, state: requests[0].state }) } as Response);
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(requests).toHaveLength(2);
     expect(requests.map(({ expectedRevision, state }) => ({ expectedRevision, tab: state.tab }))).toEqual([
       { expectedRevision: 0, tab: 'merge' },
       { expectedRevision: 1, tab: 'crop' }
