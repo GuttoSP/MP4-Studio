@@ -25,6 +25,14 @@ export type EditorAsset = {
   sortOrder: number;
 };
 
+export type TimelineThumbnail = {
+  frameIndex: number;
+  time: number;
+  width: number;
+  height: number;
+  url: string;
+};
+
 export type RenderJob = {
   id: string;
   projectId: string;

@@ -17,20 +17,23 @@ describe('createDatabase', () => {
     const directory = mkdtempSync(join(tmpdir(), 'editor-mp4-db-'));
     cleanup.push(directory);
     const database = createDatabase(join(directory, 'editor.sqlite3'));
+    try {
+      const tables = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>;
+      const tableNames = tables.map(({ name }) => name);
 
-    const tables = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>;
-    const tableNames = tables.map(({ name }) => name);
-
-    expect(tableNames).toEqual(expect.arrayContaining([
-      'schema_migrations',
-      'projects',
-      'assets',
-      'project_revisions',
-      'render_jobs'
-    ]));
-    expect(database.prepare('PRAGMA foreign_keys').get()).toEqual({ foreign_keys: 1 });
-    expect(database.prepare('SELECT version FROM schema_migrations').get()).toEqual({ version: 1 });
-    database.close();
+      expect(tableNames).toEqual(expect.arrayContaining([
+        'schema_migrations',
+        'projects',
+        'assets',
+        'timeline_thumbnails',
+        'project_revisions',
+        'render_jobs'
+      ]));
+      expect(database.prepare('PRAGMA foreign_keys').get()).toEqual({ foreign_keys: 1 });
+      expect(database.prepare('SELECT version FROM schema_migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }]);
+    } finally {
+      database.close();
+    }
   });
 
   it('reopens an existing database without duplicating migrations', () => {
@@ -40,8 +43,10 @@ describe('createDatabase', () => {
 
     createDatabase(path).close();
     const reopened = createDatabase(path);
-
-    expect(reopened.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get()).toEqual({ count: 1 });
-    reopened.close();
+    try {
+      expect(reopened.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get()).toEqual({ count: 2 });
+    } finally {
+      reopened.close();
+    }
   });
 });
