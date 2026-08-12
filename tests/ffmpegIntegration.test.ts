@@ -10,8 +10,10 @@ import { metadataFromProbe, type ProbeDocument } from '../server/mediaProbe';
 import { normalizeExport } from '../shared/editorValidation';
 
 const bin = 'D:\\AI\\ffmpeg-shared\\ffmpeg-master-latest-win64-gpl-shared\\bin';
-const ffmpeg = join(bin, 'ffmpeg.exe');
-const ffprobe = join(bin, 'ffprobe.exe');
+const bundledFfmpeg = join(bin, 'ffmpeg.exe');
+const bundledFfprobe = join(bin, 'ffprobe.exe');
+const ffmpeg = existsSync(bundledFfmpeg) ? bundledFfmpeg : 'ffmpeg';
+const ffprobe = existsSync(bundledFfprobe) ? bundledFfprobe : 'ffprobe';
 const projectId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 let directory = '';
 let assets: ResolvedAsset[] = [];
@@ -25,7 +27,12 @@ function inspect(path: string): ProbeDocument {
 }
 
 beforeAll(() => {
-  if (!existsSync(ffmpeg) || !existsSync(ffprobe)) throw new Error('FFmpeg de D:\\AI não está disponível.');
+  try {
+    execFileSync(ffmpeg, ['-version'], { stdio: 'pipe', windowsHide: true, timeout: 10_000 });
+    execFileSync(ffprobe, ['-version'], { stdio: 'pipe', windowsHide: true, timeout: 10_000 });
+  } catch {
+    throw new Error('FFmpeg e ffprobe não estão disponíveis em D:\\AI nem no PATH.');
+  }
   directory = mkdtempSync(join(tmpdir(), 'editor-mp4-ffmpeg-'));
   const first = join(directory, 'first.mp4');
   const second = join(directory, 'second.mp4');
