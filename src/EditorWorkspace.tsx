@@ -33,6 +33,7 @@ export function EditorWorkspace({ initialProject, initialAssets, initialJobs, on
   const [exporting, setExporting] = useState(false);
   const [localError, setLocalError] = useState('');
   const hydrated = useRef(false);
+  const saveQueue = useRef(Promise.resolve(initialProject));
   const selected = state.assets.find((asset) => asset.id === state.selectedAssetId);
   const left = state.assets.find((asset) => asset.id === state.sideLeftAssetId);
   const right = state.assets.find((asset) => asset.id === state.sideRightAssetId);
@@ -41,9 +42,17 @@ export function EditorWorkspace({ initialProject, initialAssets, initialJobs, on
     if (!hydrated.current) { hydrated.current = true; return; }
     setSaveStatus('Salvando…');
     const timer = window.setTimeout(() => {
-      void api.saveProject(project, state as unknown as Record<string, unknown>, name)
-        .then((saved) => { setProject(saved); setSaveStatus('Salvo'); })
-        .catch((error: Error) => { setSaveStatus('Conflito'); setLocalError(error.message); });
+      saveQueue.current = saveQueue.current.then(async (confirmedProject) => {
+        try {
+          const saved = await api.saveProject(confirmedProject, state as unknown as Record<string, unknown>, name);
+          setProject(saved); setSaveStatus('Salvo');
+          return saved;
+        } catch (error) {
+          setSaveStatus('Conflito');
+          setLocalError(error instanceof Error ? error.message : 'Falha ao salvar o projeto.');
+          return confirmedProject;
+        }
+      });
     }, 400);
     return () => window.clearTimeout(timer);
   }, [state, name]);

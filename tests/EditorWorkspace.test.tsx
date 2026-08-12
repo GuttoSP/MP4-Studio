@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EditorWorkspace } from '../src/EditorWorkspace';
 import type { EditorAsset, EditorProject } from '../shared/types';
 
@@ -12,6 +12,11 @@ const asset: EditorAsset = {
   id: '11111111-1111-4111-8111-111111111111', projectId: project.id, name: 'oceano.mp4',
   kind: 'video', duration: 45, width: 1920, height: 1080, fps: 30, hasAudio: true, sortOrder: 0
 };
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe('EditorWorkspace', () => {
   it('renders the complete editing surface and adds a kept range', async () => {
@@ -26,5 +31,37 @@ describe('EditorWorkspace', () => {
     await user.click(screen.getByRole('button', { name: 'Adicionar trecho' }));
     expect(screen.getAllByText('Trecho 1')).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: 'Exportar MP4' })[0]).toBeEnabled();
+  });
+
+  it('serializes autosaves so every request uses the latest confirmed revision', async () => {
+    vi.useFakeTimers();
+    let resolveFirst!: (value: Response) => void;
+    const firstResponse = new Promise<Response>((resolve) => { resolveFirst = resolve; });
+    const requests: Array<{ expectedRevision: number; state: { tab: string } }> = [];
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as { expectedRevision: number; state: { tab: string } };
+      requests.push(body);
+      if (requests.length === 1) return firstResponse;
+      return { ok: true, json: async () => ({ ...project, revision: 2, state: body.state }) } as Response;
+    });
+
+    render(<EditorWorkspace initialProject={project} initialAssets={[asset]} initialJobs={[]} onBack={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Mesclar' }));
+    await act(async () => { vi.advanceTimersByTime(400); });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Crop' }));
+    await act(async () => { vi.advanceTimersByTime(400); });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    resolveFirst({ ok: true, json: async () => ({ ...project, revision: 1, state: requests[0].state }) } as Response);
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(requests.map(({ expectedRevision, state }) => ({ expectedRevision, tab: state.tab }))).toEqual([
+      { expectedRevision: 0, tab: 'merge' },
+      { expectedRevision: 1, tab: 'crop' }
+    ]);
   });
 });
