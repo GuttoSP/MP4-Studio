@@ -1,8 +1,21 @@
 {
   "name": "editor-mp4",
   "version": "0.1.0",
+  "description": "Editor MP4 local em React com persistência SQLite e renderização FFmpeg.",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GuttoSP/MP4-Studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GuttoSP/MP4-Studio/issues"
+  },
+  "homepage": "https://github.com/GuttoSP/MP4-Studio#readme",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "tsx watch server/index.ts",
