@@ -41,6 +41,28 @@ describe('buildRenderCommand', () => {
     expect(command.args).toContain('+faststart');
   });
 
+  it('normalizes and concatenates visible timeline winners with a dry cut', () => {
+    const project = normalizeExport({
+      projectId: asset.projectId,
+      operation: 'timeline',
+      inputs: [
+        { assetId: asset.id, start: 0, end: 2 },
+        { assetId: second.id, start: 2, end: 4 },
+        { assetId: asset.id, start: 4, end: 6 }
+      ]
+    }, [asset, second]);
+
+    const command = buildRenderCommand(project, [asset, second], 'D:\\safe\\timeline.mp4');
+    const graph = command.args[command.args.indexOf('-filter_complex') + 1];
+
+    expect(graph).toContain('[0:v]trim=start=0:end=2');
+    expect(graph).toContain('[1:v]trim=start=2:end=4');
+    expect(graph).toContain('scale=1280:720:force_original_aspect_ratio=decrease');
+    expect(graph).toContain('concat=n=3:v=1:a=1');
+    expect(graph).not.toContain('xfade=');
+    expect(command.duration).toBe(6);
+  });
+
   it('selects the right output descriptor for frame and GIF', () => {
     const base = { projectId: asset.projectId, inputs: [{ assetId: asset.id, start: 0, end: 2 }] };
     expect(outputDescriptor(normalizeExport({ ...base, operation: 'gif' }, [asset])).extension).toBe('.gif');

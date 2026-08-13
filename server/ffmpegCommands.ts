@@ -69,7 +69,13 @@ function cutOrMerge(project: NormalizedExport, assets: ResolvedAsset[], outputPa
   project.inputs.forEach((input, item) => {
     const asset = byId.get(input.assetId)!;
     const base = [`trim=start=${number(input.start)}:end=${number(input.end)}`, 'setpts=PTS-STARTPTS'];
-    if (project.operation === 'merge') base.push(`scale=${even(target.width)}:${even(target.height)}:force_original_aspect_ratio=decrease`, `pad=${even(target.width)}:${even(target.height)}:(ow-iw)/2:(oh-ih)/2`, `fps=${project.output.fps || target.fps || 30}`);
+    if (project.operation === 'merge' || project.operation === 'timeline') {
+      base.push(
+        `scale=${even(target.width)}:${even(target.height)}:force_original_aspect_ratio=decrease`,
+        `pad=${even(target.width)}:${even(target.height)}:(ow-iw)/2:(oh-ih)/2`,
+        `fps=${project.output.fps || target.fps || 30}`
+      );
+    }
     graph.push(`[${index.get(asset.id)}:v]${base.join(',')}[v${item}]`); labels.push(`[v${item}]`);
     if (hasAudio) {
       const duration = input.end - input.start;

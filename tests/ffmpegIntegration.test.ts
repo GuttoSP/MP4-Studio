@@ -104,6 +104,22 @@ describe('real FFmpeg integration', () => {
     expect(metadata).toMatchObject({ width: 240, height: 240, hasAudio: true });
   }, 60_000);
 
+  it('exports the visible winners of a layered timeline as one playable MP4', () => {
+    const output = join(directory, 'timeline.mp4');
+    const project = normalizeExport({ projectId, operation: 'timeline', inputs: [
+      { assetId: assets[0].id, start: 0.1, end: 0.6 },
+      { assetId: assets[1].id, start: 0.4, end: 0.9 },
+      { assetId: assets[0].id, start: 1.1, end: 1.6 }
+    ], output: { quality: 'compact' } }, assets);
+    const command = buildRenderCommand(project, assets, output);
+    run(command.args);
+
+    const metadata = metadataFromProbe(output, inspect(output));
+    expect(metadata.duration).toBeGreaterThan(1.4);
+    expect(metadata.duration).toBeLessThan(1.7);
+    expect(metadata).toMatchObject({ width: 320, height: 180, hasAudio: true });
+  }, 60_000);
+
   it('extracts a WebP frame at the selected timestamp', () => {
     const output = join(directory, 'frame.webp');
     const project = normalizeExport({ projectId, operation: 'frame', inputs: [
