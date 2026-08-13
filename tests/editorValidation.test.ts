@@ -72,5 +72,16 @@ describe('normalizeExport', () => {
       transition: { type: 'dissolve', duration: 0.75 as 0.5 }
     }, [video(base.inputs[0].assetId)]))
       .toThrow('Duração da transição inválido');
+
+    expect(() => normalizeExport({
+      ...base,
+      operation: 'timeline',
+      inputs: [
+        { ...base.inputs[0], start: 1, end: 1.2 },
+        { ...base.inputs[0], start: 2, end: 3 }
+      ],
+      transition: { type: 'dissolve', duration: 0.25 }
+    }, [video(base.inputs[0].assetId)]))
+      .toThrow('menor que cada trecho');
   });
 });

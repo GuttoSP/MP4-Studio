@@ -237,7 +237,10 @@ export function createApp(options: AppOptions = {}) {
       const durations = project.inputs.map((input) => input.end - input.start).filter((duration) => duration > 0);
       return project.sideBySide.durationPolicy === 'longest' ? Math.max(...durations) : Math.min(...durations);
     }
-    return project.inputs.reduce((sum, input) => sum + input.end - input.start, 0) / project.adjustments.speed;
+    const overlap = project.operation === 'timeline' && project.transition.type === 'dissolve'
+      ? project.transition.duration * Math.max(0, project.inputs.length - 1)
+      : 0;
+    return (project.inputs.reduce((sum, input) => sum + input.end - input.start, 0) - overlap) / project.adjustments.speed;
   }
 
   app.post('/api/projects/:id/exports', async (request, response) => {

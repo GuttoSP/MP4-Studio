@@ -120,6 +120,21 @@ describe('real FFmpeg integration', () => {
     expect(metadata).toMatchObject({ width: 320, height: 180, hasAudio: true });
   }, 60_000);
 
+  it('exports a layered timeline with a playable dissolve transition', () => {
+    const output = join(directory, 'timeline-dissolve.mp4');
+    const project = normalizeExport({ projectId, operation: 'timeline', inputs: [
+      { assetId: assets[0].id, start: 0.1, end: 1.1 },
+      { assetId: assets[1].id, start: 0.2, end: 1.2 }
+    ], transition: { type: 'dissolve', duration: 0.25 }, output: { quality: 'compact' } }, assets);
+    const command = buildRenderCommand(project, assets, output);
+    run(command.args);
+
+    const metadata = metadataFromProbe(output, inspect(output));
+    expect(metadata.duration).toBeGreaterThan(1.65);
+    expect(metadata.duration).toBeLessThan(1.85);
+    expect(metadata).toMatchObject({ width: 320, height: 180, hasAudio: true });
+  }, 60_000);
+
   it('extracts a WebP frame at the selected timestamp', () => {
     const output = join(directory, 'frame.webp');
     const project = normalizeExport({ projectId, operation: 'frame', inputs: [

@@ -95,6 +95,10 @@ export function normalizeExport(input: ExportRequest, assets: EditorAsset[]): No
   const transitionDuration = transitionType === 'none'
     ? 0
     : choice(rawTransition.duration, 0.5, [0.25, 0.5, 1] as const, 'Duração da transição');
+  if (operation === 'timeline' && transitionType === 'dissolve' && pairs.length > 1
+    && pairs.some(({ input: pair }) => pair.end - pair.start <= transitionDuration)) {
+    throw new Error('A duração da transição deve ser menor que cada trecho visível.');
+  }
   return {
     projectId: input.projectId,
     operation,

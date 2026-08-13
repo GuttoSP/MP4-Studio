@@ -63,6 +63,28 @@ describe('buildRenderCommand', () => {
     expect(command.duration).toBe(6);
   });
 
+  it('crossfades video and audio when the timeline transition is dissolve', () => {
+    const project = normalizeExport({
+      projectId: asset.projectId,
+      operation: 'timeline',
+      inputs: [
+        { assetId: asset.id, start: 0, end: 2 },
+        { assetId: second.id, start: 1, end: 3 },
+        { assetId: asset.id, start: 4, end: 6 }
+      ],
+      transition: { type: 'dissolve', duration: 0.5 }
+    }, [asset, second]);
+
+    const command = buildRenderCommand(project, [asset, second], 'D:\\safe\\dissolve.mp4');
+    const graph = command.args[command.args.indexOf('-filter_complex') + 1];
+
+    expect(graph).toContain('xfade=transition=fade:duration=0.5:offset=1.5');
+    expect(graph).toContain('xfade=transition=fade:duration=0.5:offset=3');
+    expect(graph).toContain('acrossfade=d=0.5:c1=tri:c2=tri');
+    expect(graph).not.toContain('concat=n=3');
+    expect(command.duration).toBe(5);
+  });
+
   it('selects the right output descriptor for frame and GIF', () => {
     const base = { projectId: asset.projectId, inputs: [{ assetId: asset.id, start: 0, end: 2 }] };
     expect(outputDescriptor(normalizeExport({ ...base, operation: 'gif' }, [asset])).extension).toBe('.gif');
