@@ -6,9 +6,16 @@ Editor de vídeo local e orientado a projetos. A interface é feita em React, os
 
 ## Principais recursos
 
+- timeline multicamadas com prioridade visual: a faixa mais alta visível vence em cada instante;
+- clipes arrastáveis entre faixas, posicionamento livre, divisão, trim pelas bordas, ocultação e remoção;
+- lacunas e trechos ocultos revelam automaticamente o conteúdo das faixas abaixo;
+- faixa **Saída final** e monitor sincronizado mostram exatamente o que será renderizado;
+- transição seca por padrão ou dissolve opcional de 0,25 s, 0,5 s ou 1 s;
 - biblioteca de mídias com importação múltipla e arrastar/soltar;
 - suporte a MP4, WebP animado, WebP estático, PNG e JPEG;
-- preview, transporte, seek e timeline com miniaturas;
+- preview, transporte, seek e timeline com quadros reais de vários timeframes;
+- thumbs completas na proporção original: retrato continua retrato e paisagem continua paisagem;
+- playhead, zoom, clips, aparadores, crop e divisor lado a lado manipuláveis diretamente;
 - corte por múltiplos trechos, com remoção e reordenação;
 - mesclagem de vídeos com ordem e intervalos independentes;
 - composição lado a lado com proporção, divisor, contain/cover, pan, duração e política de áudio;
@@ -19,11 +26,19 @@ Editor de vídeo local e orientado a projetos. A interface é feita em React, os
 - fila de render com progresso, cancelamento e download;
 - desfazer/refazer com histórico de 50 edições;
 - salvamento automático e restauração pelo SQLite;
-- interface desktop completa; adaptação mobile está planejada no roadmap.
+- interface desktop completa e layout mobile responsivo; arrastar entre faixas em telas touch segue no roadmap.
 
 ## Galeria de recursos
 
-Cada imagem abaixo foi capturada no aplicativo em execução com uma cena diferente. A galeria alterna entre costa, cidade noturna, café, cachoeiras, flores, montanhas, faíscas e cozinha para deixar claro qual recurso está sendo demonstrado. Os MP4s de demonstração não fazem parte do repositório.
+Cada imagem abaixo foi capturada no aplicativo em execução com MP4s reais. Não há poster repetido para simular a timeline: a QA gerou 12 JPEGs temporais por vídeo e confirmou 12 hashes SHA-256 distintos tanto no clipe 960×540 quanto no clipe 540×960. Os MP4s, recortes, banco e renders de demonstração não fazem parte do repositório.
+
+| Faixa superior vence | Lacuna revela faixa inferior |
+| --- | --- |
+| ![Abertura da faixa superior vence as faixas abaixo](docs/screenshots/10-prioridade-faixa-superior-desktop.png) | ![Trecho oculto da faixa intermediária revela o vídeo retrato inferior](docs/screenshots/11-faixa-inferior-revelada-desktop.png) |
+
+| Cobertura intermediária | Exportação multicamadas concluída |
+| --- | --- |
+| ![Após a abertura a faixa intermediária assume a saída](docs/screenshots/12-cobertura-intermediaria-desktop.png) | ![Dissolve selecionado e render multicamadas concluído](docs/screenshots/13-exportacao-concluida-desktop.png) |
 
 | Corte e timeline | Mesclar vídeos |
 | --- | --- |
@@ -84,32 +99,33 @@ npm start
 
 1. Crie um projeto.
 2. Importe um ou mais arquivos na coluna **Mídias**.
-3. Selecione uma operação em **Ferramentas**.
-4. Ajuste a timeline, intervalos e parâmetros de saída.
-5. Clique em **Exportar MP4**, **Extrair frame** ou **Exportar GIF**.
-6. Acompanhe o progresso e use **Baixar** quando terminar.
+3. Use **Camadas**, que abre por padrão, ou selecione outra operação em **Ferramentas**.
+4. Em **Camadas**, arraste vídeos da biblioteca para as faixas. A primeira faixa tem a maior prioridade.
+5. Arraste o corpo do clipe para movê-lo; use as alças laterais para aparar; use o olho para ocultar e revelar.
+6. Confira a faixa **Saída final** e escolha corte seco ou dissolve.
+7. Clique em **Exportar MP4**, **Extrair frame** ou **Exportar GIF**.
+8. Acompanhe o progresso e use **Baixar** quando terminar.
+
+O guia [Edição multicamadas](docs/edicao-multicamadas.md) explica prioridade, ocultação, movimentação, trim e exportação com exemplos.
 
 Os arquivos originais nunca são alterados. O aplicativo trabalha com cópias armazenadas no diretório local de dados.
 
 ## Interface móvel
 
-A compatibilidade total com celulares ainda não está pronta. A validação em 390 × 844 encontrou overflow horizontal no shell; por isso, a captura mobile anterior foi removida e o trabalho está registrado na [issue #4](https://github.com/GuttoSP/MP4-Studio/issues/4). O desktop é a experiência recomendada nesta versão.
+A versão mobile está em desenvolvimento. Monitor, biblioteca horizontal, timeline multicamadas rolável e inspetor já se reorganizam para telas estreitas, mas o arrastar entre faixas ainda é uma experiência prioritariamente desktop. O ajuste final está registrado na [issue #4](https://github.com/GuttoSP/MP4-Studio/issues/4); até ela ser fechada, o desktop é a experiência recomendada.
+
+![Três timelines multicamadas e saída resolvida no layout mobile](docs/screenshots/14-timeline-multicamadas-mobile.png)
 
 ## Mídias da galeria
 
-| Captura | Cena usada | Fonte gratuita |
+| Mídia | Uso na galeria | Fonte pública |
 | --- | --- | --- |
-| Corte e timeline | Costa atlântica ao pôr do sol | [Ocean, Sunset, Coastline](https://pixabay.com/videos/ocean-sunset-coastline-drone-174472/) |
-| Mesclar vídeos | Tráfego de uma cidade à noite | [Pixabay #21985](https://pixabay.com/videos/id-21985/) |
-| Lado a lado | Cachoeira verde e faíscas douradas | [Waterfall, Stream, Forest](https://pixabay.com/videos/waterfall-stream-forest-stock-171978/) e [Fire, Sparks, Particles](https://pixabay.com/videos/fire-sparks-particles-firesparks-84469/) |
-| Crop vertical | Cachoeira em floresta no formato vertical | [Waterfall, Trees, Forest](https://pixabay.com/videos/waterfall-trees-forest-autumn-208314/) |
-| Extrair frame | Café sendo preparado | [Pixabay #46989](https://pixabay.com/videos/id-46989/) |
-| Converter para GIF | Campo de flores ao sol | [Pixabay #16453](https://pixabay.com/videos/id-16453/) |
-| Ajustes de saída | Montanhas e nuvens | [Mountains, Clouds, Mountain Landscape](https://pixabay.com/videos/mountains-clouds-mountain-landscape-138276/) |
-| Render concluído | Preparo de alimentos na cozinha | [Cook, Potato, Potatoes](https://pixabay.com/videos/cook-potato-potatoes-food-14421/) |
+| Big Buck Bunny | paisagem 960×540; corte, mesclagem, lado a lado, GIF e render | [trailer MP4 hospedado pelo W3C](https://media.w3.org/2010/05/bunny/trailer.mp4) e [projeto no Blender Studio](https://studio.blender.org/projects/big-buck-bunny/) |
+| Sintel | paisagem 854×480; cobertura intermediária e troca de prioridade | [trailer MP4 hospedado pelo W3C](https://media.w3.org/2010/05/sintel/trailer.mp4) e [projeto no Blender Studio](https://studio.blender.org/projects/sintel/) |
+| WAI Perspectives — Colors with Good Contrast | recorte retrato 540×960; faixa inferior revelada e mobile | [MP4 e materiais do W3C WAI](https://media.w3.org/wai/perspective-videos/) |
 
-- **Fonte e licença:** todos os vídeos são do Pixabay e estão disponíveis para uso gratuito sob a [Pixabay Content License](https://pixabay.com/service/license-summary/).
-- **Uso neste repositório:** somente os frames visíveis nos screenshots são versionados. Os arquivos MP4, os recortes de QA e o banco SQLite da galeria permanecem fora do Git.
+- **Créditos e licença:** filmes e imagens © Blender Foundation, disponibilizados sob [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/).
+- **Uso neste repositório:** somente os pixels visíveis nos screenshots são versionados. Os arquivos MP4, recortes de QA, JPEGs temporais, banco SQLite e renders permanecem fora do Git.
 
 ## Persistência local
 
@@ -118,7 +134,7 @@ O conteúdo do usuário fica somente na máquina local e não é rastreado pelo 
 ```text
 data/editor-mp4.sqlite3                    banco SQLite
 data/projects/<projeto>/assets             cópias das mídias importadas
-data/projects/<projeto>/thumbnails         miniaturas
+data/projects/<projeto>/thumbnails         poster e filmstrips temporais por mídia
 data/projects/<projeto>/renders            arquivos exportados
 ```
 
@@ -136,7 +152,7 @@ npm run build
 - frontend de desenvolvimento: `http://127.0.0.1:43170`;
 - API e build de produção: `http://127.0.0.1:43171`.
 
-Os testes de integração geram suas próprias mídias sintéticas e validam corte, mesclagem, lado a lado, frame e GIF usando FFmpeg real.
+Os testes de integração geram suas próprias mídias sintéticas e validam corte, timeline multicamadas, dissolve com áudio, mesclagem, lado a lado, frame e GIF usando FFmpeg real.
 
 ## Privacidade e segurança
 

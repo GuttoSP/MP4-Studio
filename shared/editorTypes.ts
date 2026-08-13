@@ -1,11 +1,31 @@
-export type EditorOperation = 'cut' | 'merge' | 'side-by-side' | 'frame' | 'gif';
-export type EditorTab = 'cut' | 'merge' | 'side-by-side' | 'crop' | 'frame' | 'gif' | 'adjustments';
+export type EditorOperation = 'cut' | 'timeline' | 'merge' | 'side-by-side' | 'frame' | 'gif';
+export type EditorTab = 'cut' | 'timeline' | 'merge' | 'side-by-side' | 'crop' | 'frame' | 'gif' | 'adjustments';
 export type FitMode = 'contain' | 'cover';
 export type OutputAspect = '16:9' | '9:16' | '1:1' | '4:5';
 export type DurationPolicy = 'shortest' | 'longest';
 export type AudioPolicy = 'first' | 'second' | 'mix' | 'none';
 export type Quality = 'high' | 'balanced' | 'compact';
 export type FrameFormat = 'png' | 'jpg' | 'webp';
+
+export type TimelineLayerClip = {
+  id: string;
+  assetId: string;
+  timelineStart: number;
+  sourceStart: number;
+  sourceEnd: number;
+  enabled: boolean;
+};
+export type TimelineTrack = { id: string; name: string; clips: TimelineLayerClip[] };
+export type TimelineTransition = { type: 'none' | 'dissolve'; duration: 0 | 0.25 | 0.5 | 1 };
+export type ResolvedTimelineSegment = {
+  trackId: string;
+  clipId: string;
+  assetId: string;
+  timelineStart: number;
+  timelineEnd: number;
+  sourceStart: number;
+  sourceEnd: number;
+};
 
 export type CropRect = { x: number; y: number; width: number; height: number };
 export type ExportInput = { assetId: string; start: number; end: number };
@@ -43,6 +63,7 @@ export type ExportRequest = {
   sideBySide?: Partial<SideBySideSettings>;
   frame?: Partial<FrameSettings>;
   gif?: Partial<GifSettings>;
+  transition?: Partial<TimelineTransition>;
 };
 
 export type NormalizedExport = {
@@ -54,4 +75,5 @@ export type NormalizedExport = {
   sideBySide: SideBySideSettings;
   frame: FrameSettings;
   gif: GifSettings;
+  transition: TimelineTransition;
 };

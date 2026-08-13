@@ -9,7 +9,8 @@ import { createDatabase } from './db';
 import { ProjectRepository, RevisionConflictError } from './projectRepository';
 import { AssetRepository, publicAsset } from './assetRepository';
 import { probeMedia, type MediaMetadata } from './mediaProbe';
-import { generateThumbnail } from './mediaAssets';
+import { generateThumbnail, generateTimelineThumbnails, type GeneratedTimelineThumbnail } from './mediaAssets';
+import { TimelineThumbnailRepository } from './timelineThumbnailRepository';
 import { resolveInside } from './pathSafety';
 import { RenderRepository } from './renderRepository';
 import { RenderQueue } from './renderRunner';
@@ -23,6 +24,11 @@ export type AppOptions = {
   mediaTools?: MediaTools;
   probe?: (path: string) => Promise<MediaMetadata>;
   thumbnail?: (input: string, output: string) => Promise<void>;
+  timelineThumbnails?: (
+    input: string,
+    outputDirectory: string,
+    metadata: MediaMetadata
+  ) => Promise<GeneratedTimelineThumbnail[]>;
 };
 
 export function createApp(options: AppOptions = {}) {
@@ -30,6 +36,7 @@ export function createApp(options: AppOptions = {}) {
   const database = createDatabase(options.databasePath ?? defaultDatabasePath);
   const projects = new ProjectRepository(database);
   const assets = new AssetRepository(database);
+  const timelineThumbnails = new TimelineThumbnailRepository(database);
   const renders = new RenderRepository(database);
   renders.recoverInterrupted();
   const renderQueue = new RenderQueue(renders);
@@ -38,6 +45,15 @@ export function createApp(options: AppOptions = {}) {
   mkdirSync(uploadRoot, { recursive: true });
   const upload = multer({ dest: uploadRoot, limits: { files: 20, fileSize: 8 * 1024 * 1024 * 1024 } });
   const mediaToolsPromise = options.mediaTools ? Promise.resolve(options.mediaTools) : createDefaultMediaTools();
+  const createTimelineThumbnails = async (
+    input: string,
+    outputDirectory: string,
+    metadata: MediaMetadata
+  ): Promise<GeneratedTimelineThumbnail[]> => {
+    if (options.timelineThumbnails) return options.timelineThumbnails(input, outputDirectory, metadata);
+    const mediaTools = await mediaToolsPromise;
+    return generateTimelineThumbnails(mediaTools.ffmpegPath, input, outputDirectory, metadata);
+  };
   app.locals.database = database;
   app.use(express.json({ limit: '2mb' }));
 
@@ -91,18 +107,27 @@ export function createApp(options: AppOptions = {}) {
         const storedName = `${id}${extension}`;
         const storedPath = resolveInside(assetDirectory, storedName);
         renameSync(file.path, storedPath);
+        const thumbnailName = `${id}.jpg`;
+        const thumbnailPath = resolveInside(thumbnailDirectory, thumbnailName);
+        const filmstripDirectory = resolveInside(thumbnailDirectory, id);
         try {
           const metadata = options.probe ? await options.probe(storedPath) : await probeMedia(mediaTools.ffprobePath, storedPath);
-          const thumbnailName = `${id}.jpg`;
-          const thumbnailPath = resolveInside(thumbnailDirectory, thumbnailName);
           if (options.thumbnail) await options.thumbnail(storedPath, thumbnailPath);
           else await generateThumbnail(mediaTools.ffmpegPath, storedPath, thumbnailPath);
-          created.push(assets.create({
+          const generatedFrames = metadata.kind === 'image'
+            ? []
+            : await createTimelineThumbnails(storedPath, filmstripDirectory, metadata);
+          const asset = assets.create({
             id, projectId: project.id, name: file.originalname, storedName, thumbnailName,
             ...metadata, sortOrder: assets.nextSortOrder(project.id), createdAt: new Date().toISOString()
-          }));
+          });
+          timelineThumbnails.replaceForAsset(id, generatedFrames.map((frame) => ({ assetId: id, ...frame })));
+          created.push(asset);
         } catch (error) {
+          assets.delete(id);
           rmSync(storedPath, { force: true });
+          rmSync(thumbnailPath, { force: true });
+          rmSync(filmstripDirectory, { recursive: true, force: true });
           throw error;
         }
       }
@@ -116,13 +141,80 @@ export function createApp(options: AppOptions = {}) {
   app.get('/api/assets/:id/content', (request, response) => {
     const asset = assets.get(String(request.params.id));
     if (!asset) { response.status(404).json({ error: 'Mídia não encontrada.' }); return; }
-    response.type(extname(asset.storedName)).sendFile(resolveInside(editorDataRoot, 'projects', asset.projectId, 'assets', asset.storedName));
+    response.type(extname(asset.storedName)).sendFile(
+      resolveInside(editorDataRoot, 'projects', asset.projectId, 'assets', asset.storedName),
+      { dotfiles: 'allow' }
+    );
   });
 
   app.get('/api/assets/:id/thumbnail', (request, response) => {
     const asset = assets.get(String(request.params.id));
     if (!asset?.thumbnailName) { response.status(404).json({ error: 'Miniatura não encontrada.' }); return; }
-    response.type('jpg').sendFile(resolveInside(editorDataRoot, 'projects', asset.projectId, 'thumbnails', asset.thumbnailName));
+    response.type('jpg').sendFile(
+      resolveInside(editorDataRoot, 'projects', asset.projectId, 'thumbnails', asset.thumbnailName),
+      { dotfiles: 'allow' }
+    );
+  });
+
+  async function ensureTimelineFrames(assetId: string) {
+    const asset = assets.get(assetId);
+    if (!asset) return undefined;
+    const currentFrames = timelineThumbnails.list(assetId);
+    if (currentFrames.length || asset.kind === 'image') return { asset, frames: currentFrames };
+
+    const input = resolveInside(editorDataRoot, 'projects', asset.projectId, 'assets', asset.storedName);
+    const outputDirectory = resolveInside(editorDataRoot, 'projects', asset.projectId, 'thumbnails', asset.id);
+    const generatedFrames = await createTimelineThumbnails(input, outputDirectory, {
+      kind: asset.kind,
+      duration: asset.duration,
+      width: asset.width,
+      height: asset.height,
+      fps: asset.fps,
+      hasAudio: asset.hasAudio
+    });
+    const frames = generatedFrames.map((frame) => ({ assetId, ...frame }));
+    timelineThumbnails.replaceForAsset(assetId, frames);
+    return { asset, frames };
+  }
+
+  app.get('/api/assets/:id/timeline-thumbnails', async (request, response) => {
+    try {
+      const result = await ensureTimelineFrames(String(request.params.id));
+      if (!result) { response.status(404).json({ error: 'Mídia não encontrada.' }); return; }
+      response.json({
+        frames: result.frames.map((frame) => ({
+          frameIndex: frame.frameIndex,
+          time: frame.timestampMs / 1000,
+          width: frame.width,
+          height: frame.height,
+          url: `/api/assets/${result.asset.id}/timeline-thumbnails/${frame.frameIndex}`
+        }))
+      });
+    } catch (error) {
+      response.status(500).json({ error: error instanceof Error ? error.message : 'Falha ao gerar a linha do tempo.' });
+    }
+  });
+
+  app.get('/api/assets/:id/timeline-thumbnails/:frameIndex', (request, response) => {
+    const asset = assets.get(String(request.params.id));
+    const frameIndex = Number(request.params.frameIndex);
+    if (!asset || !Number.isInteger(frameIndex) || frameIndex < 0) {
+      response.status(404).json({ error: 'Quadro não encontrado.' });
+      return;
+    }
+    const frame = timelineThumbnails.list(asset.id).find((candidate) => candidate.frameIndex === frameIndex);
+    if (!frame) { response.status(404).json({ error: 'Quadro não encontrado.' }); return; }
+    response.type('jpg').sendFile(
+      resolveInside(
+        editorDataRoot,
+        'projects',
+        asset.projectId,
+        'thumbnails',
+        asset.id,
+        frame.fileName
+      ),
+      { dotfiles: 'allow' }
+    );
   });
 
   app.get('/api/jobs', (request, response) => {
@@ -145,7 +237,10 @@ export function createApp(options: AppOptions = {}) {
       const durations = project.inputs.map((input) => input.end - input.start).filter((duration) => duration > 0);
       return project.sideBySide.durationPolicy === 'longest' ? Math.max(...durations) : Math.min(...durations);
     }
-    return project.inputs.reduce((sum, input) => sum + input.end - input.start, 0) / project.adjustments.speed;
+    const overlap = project.operation === 'timeline' && project.transition.type === 'dissolve'
+      ? project.transition.duration * Math.max(0, project.inputs.length - 1)
+      : 0;
+    return (project.inputs.reduce((sum, input) => sum + input.end - input.start, 0) - overlap) / project.adjustments.speed;
   }
 
   app.post('/api/projects/:id/exports', async (request, response) => {
@@ -181,8 +276,8 @@ export function createApp(options: AppOptions = {}) {
       return;
     }
     const outputPath = resolveInside(editorDataRoot, 'projects', job.projectId, 'renders', job.id, job.outputName);
-    if (request.query.download === '1') response.download(outputPath, job.outputName);
-    else response.sendFile(outputPath);
+    if (request.query.download === '1') response.download(outputPath, job.outputName, { dotfiles: 'allow' });
+    else response.sendFile(outputPath, { dotfiles: 'allow' });
   });
 
   app.patch('/api/projects/:id', (request, response) => {
@@ -215,7 +310,7 @@ export function createApp(options: AppOptions = {}) {
   const dist = resolve(projectRoot, 'dist');
   if (existsSync(dist)) {
     app.use(express.static(dist));
-    app.get('*path', (_request, response) => response.sendFile(resolve(dist, 'index.html')));
+    app.get('*path', (_request, response) => response.sendFile(resolve(dist, 'index.html'), { dotfiles: 'allow' }));
   }
   return app;
 }

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { EditorAsset, EditorProject, RenderJob } from '../shared/types';
 import { normalizeExport } from '../shared/editorValidation';
+import { resolveTimeline, timelineDuration, timelineSegmentAt } from '../shared/timelineComposition';
 import { api } from './api';
 import { createInitialEditorHistory, editorReducer, serializeExport, type EditorState } from './editor/editorState';
 import { EditorHeader } from './components/EditorHeader';
 import { MediaLibrary } from './components/MediaLibrary';
 import { PreviewMonitor } from './components/PreviewMonitor';
 import { Timeline } from './components/Timeline';
+import { LayeredTimeline } from './components/LayeredTimeline';
 import { ToolInspector } from './components/ToolInspector';
 import { RenderQueue } from './components/RenderQueue';
 
@@ -37,6 +39,15 @@ export function EditorWorkspace({ initialProject, initialAssets, initialJobs, on
   const selected = state.assets.find((asset) => asset.id === state.selectedAssetId);
   const left = state.assets.find((asset) => asset.id === state.sideLeftAssetId);
   const right = state.assets.find((asset) => asset.id === state.sideRightAssetId);
+  const resolvedTimeline = useMemo(() => resolveTimeline(state.tracks, state.assets), [state.tracks, state.assets]);
+  const activeTimelineSegment = state.tab === 'timeline' ? timelineSegmentAt(resolvedTimeline, state.currentTime) : undefined;
+  const previewSelected = activeTimelineSegment
+    ? state.assets.find(({ id }) => id === activeTimelineSegment.assetId)
+    : state.tab === 'timeline' ? undefined : selected;
+  const previewMediaTime = activeTimelineSegment
+    ? activeTimelineSegment.sourceStart + state.currentTime - activeTimelineSegment.timelineStart
+    : state.currentTime;
+  const previewTrack = activeTimelineSegment && state.tracks.find(({ id }) => id === activeTimelineSegment.trackId);
 
   useEffect(() => {
     if (!hydrated.current) { hydrated.current = true; return; }
@@ -101,7 +112,13 @@ export function EditorWorkspace({ initialProject, initialAssets, initialJobs, on
     <EditorHeader name={name} saveStatus={saveStatus} canUndo={history.past.length > 0} canRedo={history.future.length > 0} canExport={!exportError} exporting={exporting} onNameChange={setName} onBack={onBack} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => void exportNow()} />
     <div className="editor-layout">
       <MediaLibrary assets={state.assets} selectedId={state.selectedAssetId} importing={importing} onSelect={(assetId) => dispatch({ type: 'select-asset', assetId })} onImport={(files) => void importFiles(files)} />
-      <div className="center-workspace"><PreviewMonitor state={state} selected={selected} left={left} right={right} onTime={(time) => dispatch({ type: 'set-current-time', time })} /><Timeline state={state} asset={selected?.kind === 'image' ? undefined : selected} onSeek={(time) => dispatch({ type: 'set-current-time', time })} onAdd={() => dispatch({ type: 'add-range' })} onRemove={(id) => dispatch({ type: 'remove-range', id })} /></div>
+      <div className="center-workspace"><PreviewMonitor state={state} selected={previewSelected} left={left} right={right} mediaTime={previewMediaTime} displayDuration={state.tab === 'timeline' ? timelineDuration(state.tracks) : undefined} winnerLabel={activeTimelineSegment && previewTrack && previewSelected ? `${previewTrack.name} · ${previewSelected.name}` : undefined} onMediaTime={(sourceTime) => {
+        if (!activeTimelineSegment) { dispatch({ type: 'set-current-time', time: sourceTime }); return; }
+        const globalTime = activeTimelineSegment.timelineStart + sourceTime - activeTimelineSegment.sourceStart;
+        dispatch({ type: 'set-current-time', time: Math.min(activeTimelineSegment.timelineEnd, Math.max(activeTimelineSegment.timelineStart, globalTime)) });
+      }} onTime={(time) => dispatch({ type: 'set-current-time', time })} onSideDrop={(side, assetId) => dispatch({ type: 'set-side-assets', left: side === 'left' ? assetId : state.sideLeftAssetId, right: side === 'right' ? assetId : state.sideRightAssetId })} onCropCommit={(crop) => dispatch({ type: 'set-crop', crop })} onDividerCommit={(divider) => dispatch({ type: 'set-side-settings', value: { divider } })} />{state.tab === 'timeline'
+        ? <LayeredTimeline state={state} dispatch={dispatch} />
+        : <Timeline state={state} asset={selected?.kind === 'image' ? undefined : selected} onSeek={(time) => dispatch({ type: 'set-current-time', time })} onZoom={(zoom) => dispatch({ type: 'set-timeline-zoom', zoom })} onAdd={() => dispatch({ type: 'add-range' })} onRemove={(id) => dispatch({ type: 'remove-range', id })} onUpdate={(id, start, end) => dispatch({ type: 'commit-range-trim', id, start, end })} onReorder={(id, beforeId) => dispatch({ type: 'reorder-range', id, beforeId })} onAssetDrop={(assetId) => dispatch({ type: 'insert-range', assetId })} />}</div>
       <ToolInspector state={state} selected={selected} error={localError || exportError} dispatch={dispatch} onExport={() => void exportNow()} exporting={exporting} />
     </div>
     <RenderQueue jobs={jobs} onCancel={(id) => void api.cancelJob(id).then((job) => setJobs((items) => items.map((item) => item.id === id ? job : item)))} />

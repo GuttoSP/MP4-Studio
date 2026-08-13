@@ -1,11 +1,13 @@
 // @vitest-environment node
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildRenderCommand, type ResolvedAsset } from '../server/ffmpegCommands';
+import { generateTimelineThumbnails } from '../server/mediaAssets';
 import { metadataFromProbe, type ProbeDocument } from '../server/mediaProbe';
 import { normalizeExport } from '../shared/editorValidation';
 
@@ -47,6 +49,20 @@ beforeAll(() => {
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
 
 describe('real FFmpeg integration', () => {
+  it('extracts distinct full-frame portrait thumbnails at distinct timestamps', async () => {
+    const source = join(directory, 'portrait.mp4');
+    const output = join(directory, 'portrait-filmstrip');
+    run(['-y', '-f', 'lavfi', '-i', 'testsrc2=size=180x320:rate=24', '-t', '1.5', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', source]);
+
+    const frames = await generateTimelineThumbnails(ffmpeg, source, output, { duration: 1.5, width: 180, height: 320 });
+    const hashes = frames.map(({ fileName }) => createHash('sha256').update(readFileSync(join(output, fileName))).digest('hex'));
+
+    expect(frames).toHaveLength(12);
+    expect(new Set(frames.map(({ timestampMs }) => timestampMs)).size).toBe(frames.length);
+    expect(new Set(hashes).size).toBeGreaterThan(1);
+    expect(frames.every(({ width, height }) => height > width)).toBe(true);
+  }, 60_000);
+
   it('exports ordered exact cut ranges as playable H.264 MP4 with audio', () => {
     const output = join(directory, 'cut.mp4');
     const project = normalizeExport({ projectId, operation: 'cut', inputs: [
@@ -86,6 +102,37 @@ describe('real FFmpeg integration', () => {
     const metadata = metadataFromProbe(output, inspect(output));
     expect(metadata.duration).toBeGreaterThan(1.2);
     expect(metadata).toMatchObject({ width: 240, height: 240, hasAudio: true });
+  }, 60_000);
+
+  it('exports the visible winners of a layered timeline as one playable MP4', () => {
+    const output = join(directory, 'timeline.mp4');
+    const project = normalizeExport({ projectId, operation: 'timeline', inputs: [
+      { assetId: assets[0].id, start: 0.1, end: 0.6 },
+      { assetId: assets[1].id, start: 0.4, end: 0.9 },
+      { assetId: assets[0].id, start: 1.1, end: 1.6 }
+    ], output: { quality: 'compact' } }, assets);
+    const command = buildRenderCommand(project, assets, output);
+    run(command.args);
+
+    const metadata = metadataFromProbe(output, inspect(output));
+    expect(metadata.duration).toBeGreaterThan(1.4);
+    expect(metadata.duration).toBeLessThan(1.7);
+    expect(metadata).toMatchObject({ width: 320, height: 180, hasAudio: true });
+  }, 60_000);
+
+  it('exports a layered timeline with a playable dissolve transition', () => {
+    const output = join(directory, 'timeline-dissolve.mp4');
+    const project = normalizeExport({ projectId, operation: 'timeline', inputs: [
+      { assetId: assets[0].id, start: 0.1, end: 1.1 },
+      { assetId: assets[1].id, start: 0.2, end: 1.2 }
+    ], transition: { type: 'dissolve', duration: 0.25 }, output: { quality: 'compact' } }, assets);
+    const command = buildRenderCommand(project, assets, output);
+    run(command.args);
+
+    const metadata = metadataFromProbe(output, inspect(output));
+    expect(metadata.duration).toBeGreaterThan(1.65);
+    expect(metadata.duration).toBeLessThan(1.85);
+    expect(metadata).toMatchObject({ width: 320, height: 180, hasAudio: true });
   }, 60_000);
 
   it('extracts a WebP frame at the selected timestamp', () => {

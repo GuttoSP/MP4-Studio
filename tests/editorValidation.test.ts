@@ -21,7 +21,8 @@ describe('normalizeExport', () => {
     expect(result).toMatchObject({
       operation: 'cut',
       output: { height: 0, fps: 0, quality: 'balanced' },
-      adjustments: { speed: 1, muted: false, volume: 1 }
+      adjustments: { speed: 1, muted: false, volume: 1 },
+      transition: { type: 'none', duration: 0 }
     });
   });
 
@@ -38,5 +39,49 @@ describe('normalizeExport', () => {
   it('rejects crop coordinates that escape the frame', () => {
     expect(() => normalizeExport({ ...base, adjustments: { crop: { x: 0.8, y: 0, width: 0.4, height: 1 } } }, [video(base.inputs[0].assetId)]))
       .toThrow('ultrapassa');
+  });
+
+  it('normalizes layered timeline segments and an optional dissolve', () => {
+    const secondId = '22222222-2222-4222-8222-222222222222';
+    const result = normalizeExport({
+      ...base,
+      operation: 'timeline',
+      inputs: [base.inputs[0], { assetId: secondId, start: 4, end: 9 }],
+      transition: { type: 'dissolve', duration: 0.5 }
+    }, [video(base.inputs[0].assetId), video(secondId)]);
+
+    expect(result).toMatchObject({
+      operation: 'timeline',
+      inputs: [base.inputs[0], { assetId: secondId, start: 4, end: 9 }],
+      transition: { type: 'dissolve', duration: 0.5 }
+    });
+  });
+
+  it('rejects images and invalid transitions in a layered timeline', () => {
+    const imageId = '33333333-3333-4333-8333-333333333333';
+    expect(() => normalizeExport({
+      ...base,
+      operation: 'timeline',
+      inputs: [{ assetId: imageId, start: 0, end: 0 }]
+    }, [video(imageId, { kind: 'image', duration: 0, hasAudio: false })]))
+      .toThrow('Timeline exige vídeos');
+
+    expect(() => normalizeExport({
+      ...base,
+      operation: 'timeline',
+      transition: { type: 'dissolve', duration: 0.75 as 0.5 }
+    }, [video(base.inputs[0].assetId)]))
+      .toThrow('Duração da transição inválido');
+
+    expect(() => normalizeExport({
+      ...base,
+      operation: 'timeline',
+      inputs: [
+        { ...base.inputs[0], start: 1, end: 1.2 },
+        { ...base.inputs[0], start: 2, end: 3 }
+      ],
+      transition: { type: 'dissolve', duration: 0.25 }
+    }, [video(base.inputs[0].assetId)]))
+      .toThrow('menor que cada trecho');
   });
 });

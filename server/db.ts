@@ -2,14 +2,8 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-const MIGRATION_VERSION = 1;
-
-const migration = `
-  CREATE TABLE IF NOT EXISTS schema_migrations (
-    version INTEGER PRIMARY KEY,
-    applied_at TEXT NOT NULL
-  );
-
+const migrations = [
+  { version: 1, sql: `
   CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -64,7 +58,24 @@ const migration = `
   CREATE INDEX IF NOT EXISTS idx_assets_project ON assets(project_id, sort_order);
   CREATE INDEX IF NOT EXISTS idx_revisions_project ON project_revisions(project_id, revision DESC);
   CREATE INDEX IF NOT EXISTS idx_jobs_project ON render_jobs(project_id, created_at DESC);
-`;
+  ` },
+  { version: 2, sql: `
+    CREATE TABLE IF NOT EXISTS timeline_thumbnails (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+      frame_index INTEGER NOT NULL,
+      timestamp_ms INTEGER NOT NULL,
+      file_name TEXT NOT NULL,
+      width INTEGER NOT NULL,
+      height INTEGER NOT NULL,
+      UNIQUE(asset_id, frame_index),
+      UNIQUE(asset_id, timestamp_ms)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_timeline_thumbnails_asset
+      ON timeline_thumbnails(asset_id, frame_index);
+  ` }
+] as const;
 
 export function createDatabase(path: string): DatabaseSync {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
@@ -73,9 +84,17 @@ export function createDatabase(path: string): DatabaseSync {
   if (path !== ':memory:') database.exec('PRAGMA journal_mode = WAL');
   database.exec('BEGIN IMMEDIATE');
   try {
-    database.exec(migration);
-    database.prepare('INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)')
-      .run(MIGRATION_VERSION, new Date().toISOString());
+    database.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
+      version INTEGER PRIMARY KEY,
+      applied_at TEXT NOT NULL
+    )`);
+    const applied = new Set((database.prepare('SELECT version FROM schema_migrations').all() as Array<{ version: number }>).map(({ version }) => version));
+    for (const migration of migrations) {
+      if (applied.has(migration.version)) continue;
+      database.exec(migration.sql);
+      database.prepare('INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)')
+        .run(migration.version, new Date().toISOString());
+    }
     database.exec('COMMIT');
   } catch (error) {
     database.exec('ROLLBACK');

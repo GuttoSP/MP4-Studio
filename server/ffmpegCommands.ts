@@ -65,27 +65,57 @@ function cutOrMerge(project: NormalizedExport, assets: ResolvedAsset[], outputPa
   const target = byId.get(project.inputs[0].assetId)!;
   const hasAudio = !project.adjustments.muted && project.inputs.some((input) => byId.get(input.assetId)?.hasAudio);
   const graph: string[] = [];
-  const labels: string[] = [];
+  const videoLabels: string[] = [];
+  const audioLabels: string[] = [];
   project.inputs.forEach((input, item) => {
     const asset = byId.get(input.assetId)!;
     const base = [`trim=start=${number(input.start)}:end=${number(input.end)}`, 'setpts=PTS-STARTPTS'];
-    if (project.operation === 'merge') base.push(`scale=${even(target.width)}:${even(target.height)}:force_original_aspect_ratio=decrease`, `pad=${even(target.width)}:${even(target.height)}:(ow-iw)/2:(oh-ih)/2`, `fps=${project.output.fps || target.fps || 30}`);
-    graph.push(`[${index.get(asset.id)}:v]${base.join(',')}[v${item}]`); labels.push(`[v${item}]`);
+    if (project.operation === 'merge' || project.operation === 'timeline') {
+      base.push(
+        `scale=${even(target.width)}:${even(target.height)}:force_original_aspect_ratio=decrease`,
+        `pad=${even(target.width)}:${even(target.height)}:(ow-iw)/2:(oh-ih)/2`,
+        `fps=${project.output.fps || target.fps || 30}`,
+        'setsar=1',
+        'settb=AVTB'
+      );
+    }
+    graph.push(`[${index.get(asset.id)}:v]${base.join(',')}[v${item}]`); videoLabels.push(`[v${item}]`);
     if (hasAudio) {
       const duration = input.end - input.start;
       graph.push(asset.hasAudio
         ? `[${index.get(asset.id)}:a]atrim=start=${number(input.start)}:end=${number(input.end)},asetpts=PTS-STARTPTS,aresample=48000[a${item}]`
         : `anullsrc=r=48000:cl=stereo,atrim=duration=${number(duration)},asetpts=PTS-STARTPTS[a${item}]`);
-      labels.push(`[a${item}]`);
+      audioLabels.push(`[a${item}]`);
     }
   });
-  if (project.inputs.length > 1) graph.push(`${labels.join('')}concat=n=${project.inputs.length}:v=1:a=${hasAudio ? 1 : 0}[basev]${hasAudio ? '[basea]' : ''}`);
-  else { graph.push('[v0]null[basev]'); if (hasAudio) graph.push('[a0]anull[basea]'); }
+  const dissolve = project.operation === 'timeline' && project.transition.type === 'dissolve' && project.inputs.length > 1;
+  if (dissolve) {
+    const duration = project.transition.duration;
+    let cumulative = project.inputs[0].end - project.inputs[0].start;
+    let currentVideo = 'v0';
+    let currentAudio = 'a0';
+    for (let item = 1; item < project.inputs.length; item += 1) {
+      const offset = cumulative - duration * item;
+      const videoOutput = item === project.inputs.length - 1 ? 'basev' : `xv${item}`;
+      graph.push(`[${currentVideo}][v${item}]xfade=transition=fade:duration=${number(duration)}:offset=${number(offset)}[${videoOutput}]`);
+      currentVideo = videoOutput;
+      if (hasAudio) {
+        const audioOutput = item === project.inputs.length - 1 ? 'basea' : `xa${item}`;
+        graph.push(`[${currentAudio}][a${item}]acrossfade=d=${number(duration)}:c1=tri:c2=tri[${audioOutput}]`);
+        currentAudio = audioOutput;
+      }
+      cumulative += project.inputs[item].end - project.inputs[item].start;
+    }
+  } else if (project.inputs.length > 1) {
+    const labels = project.inputs.map((_, item) => `${videoLabels[item]}${hasAudio ? audioLabels[item] : ''}`).join('');
+    graph.push(`${labels}concat=n=${project.inputs.length}:v=1:a=${hasAudio ? 1 : 0}[basev]${hasAudio ? '[basea]' : ''}`);
+  } else { graph.push('[v0]null[basev]'); if (hasAudio) graph.push('[a0]anull[basea]'); }
   graph.push(`[basev]${videoFilters(project, target).join(',')}[outv]`);
   if (hasAudio) graph.push(`[basea]${audioFilters(project).join(',') || 'anull'}[outa]`);
   args.push('-filter_complex', graph.join(';'));
   mp4Tail(args, project, hasAudio, outputPath);
-  return { executable: 'ffmpeg', args, outputPath, duration: project.inputs.reduce((sum, input) => sum + input.end - input.start, 0) / project.adjustments.speed, shell: false };
+  const overlap = dissolve ? project.transition.duration * (project.inputs.length - 1) : 0;
+  return { executable: 'ffmpeg', args, outputPath, duration: (project.inputs.reduce((sum, input) => sum + input.end - input.start, 0) - overlap) / project.adjustments.speed, shell: false };
 }
 
 function sideBySide(project: NormalizedExport, assets: ResolvedAsset[], outputPath: string): RenderCommand {

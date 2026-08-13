@@ -1,4 +1,4 @@
-import type { EditorAsset, EditorProject, RenderJob } from '../shared/types';
+import type { EditorAsset, EditorProject, RenderJob, TimelineThumbnail } from '../shared/types';
 import type { ExportRequest } from '../shared/editorTypes';
 
 async function json<T>(response: Response): Promise<T> {
@@ -19,6 +19,8 @@ export const api = {
     const body = new FormData(); files.forEach((file) => body.append('files', file));
     return fetch(`/api/projects/${projectId}/assets`, { method: 'POST', body }).then((response) => json<{ assets: EditorAsset[] }>(response));
   },
+  listTimelineThumbnails: (assetId: string) => fetch(`/api/assets/${assetId}/timeline-thumbnails`)
+    .then((response) => json<{ frames: TimelineThumbnail[] }>(response)),
   exportProject: (projectId: string, payload: ExportRequest) => fetch(`/api/projects/${projectId}/exports`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
   }).then((response) => json<RenderJob>(response)),

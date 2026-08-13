@@ -1,7 +1,7 @@
 import type { EditorAsset } from './types';
 import type { Adjustments, CropRect, EditorOperation, ExportRequest, NormalizedExport } from './editorTypes';
 
-const operations: EditorOperation[] = ['cut', 'merge', 'side-by-side', 'frame', 'gif'];
+const operations: EditorOperation[] = ['cut', 'timeline', 'merge', 'side-by-side', 'frame', 'gif'];
 const rotations = [0, 90, 180, 270] as const;
 const heights = [0, 720, 1080, 1440, 2160] as const;
 const outputFps = [0, 24, 25, 30, 60] as const;
@@ -65,6 +65,9 @@ export function normalizeExport(input: ExportRequest, assets: EditorAsset[]): No
   if (operation === 'merge' && (selected.length < 2 || selected.some((asset) => asset.kind === 'image'))) {
     throw new Error('Mesclagem exige pelo menos dois vídeos.');
   }
+  if (operation === 'timeline' && selected.some((asset) => asset.kind === 'image')) {
+    throw new Error('Timeline exige vídeos.');
+  }
   if (operation === 'side-by-side') {
     if (selected.length !== 2 || selected[0].id === selected[1].id) throw new Error('Lado a lado exige duas mídias diferentes.');
     if (selected.every((asset) => asset.kind === 'image')) throw new Error('Lado a lado exige pelo menos um vídeo.');
@@ -87,6 +90,15 @@ export function normalizeExport(input: ExportRequest, assets: EditorAsset[]): No
   const side = record(input.sideBySide);
   const frame = record(input.frame);
   const gif = record(input.gif);
+  const rawTransition = record(input.transition);
+  const transitionType = choice(rawTransition.type, 'none', ['none', 'dissolve'] as const, 'Transição');
+  const transitionDuration = transitionType === 'none'
+    ? 0
+    : choice(rawTransition.duration, 0.5, [0.25, 0.5, 1] as const, 'Duração da transição');
+  if (operation === 'timeline' && transitionType === 'dissolve' && pairs.length > 1
+    && pairs.some(({ input: pair }) => pair.end - pair.start <= transitionDuration)) {
+    throw new Error('A duração da transição deve ser menor que cada trecho visível.');
+  }
   return {
     projectId: input.projectId,
     operation,
@@ -119,6 +131,7 @@ export function normalizeExport(input: ExportRequest, assets: EditorAsset[]): No
       fps: bounded(gif.fps, 15, 1, 30, 'FPS do GIF'),
       loop: gif.loop == null ? true : Boolean(gif.loop),
       quality: choice(gif.quality, 'balanced', qualities, 'Qualidade do GIF')
-    }
+    },
+    transition: { type: transitionType, duration: transitionDuration }
   };
 }
