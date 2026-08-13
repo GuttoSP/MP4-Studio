@@ -25,9 +25,16 @@ describe('EditorWorkspace', () => {
 
     expect(screen.getByRole('heading', { name: 'Editor MP4' })).toBeVisible();
     expect(screen.getByRole('complementary', { name: 'Mídias' })).toBeVisible();
-    for (const label of ['Cortar', 'Mesclar', 'Lado a lado', 'Crop', 'Frame', 'GIF', 'Ajustes']) {
+    for (const label of ['Camadas', 'Cortar', 'Mesclar', 'Lado a lado', 'Crop', 'Frame', 'GIF', 'Ajustes']) {
       expect(screen.getByRole('tab', { name: label })).toBeVisible();
     }
+    await user.click(screen.getByRole('tab', { name: 'Camadas' }));
+    expect(screen.getByRole('region', { name: 'Timeline multicamadas' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Composição em camadas' })).toBeVisible();
+    expect(screen.getByLabelText('Transição')).toHaveValue('none');
+    await user.selectOptions(screen.getByLabelText('Transição'), 'dissolve');
+    expect(screen.getByLabelText('Duração da transição')).toBeEnabled();
+    await user.click(screen.getByRole('tab', { name: 'Cortar' }));
     await user.click(screen.getByRole('button', { name: 'Adicionar trecho' }));
     expect(screen.getAllByText('Trecho 1')).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: 'Exportar MP4' })[0]).toBeEnabled();

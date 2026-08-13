@@ -220,3 +220,58 @@
   .crop-manipulator { inset: 0; }
   .side-divider { top: 0; bottom: 0; }
 }
+
+/* Multilayer timeline: the first visual row has the highest render priority. */
+.layered-timeline { grid-template-rows: 48px minmax(0, 1fr); }
+.layered-tools { grid-template-columns: repeat(4, 38px) minmax(130px, 1fr) 38px 110px 38px; }
+.layered-tools .add-track-button { width: max-content; padding: 0 11px; justify-self: start; color: var(--violet-soft); gap: 7px; }
+.layered-tools .add-track-button svg { width: 16px; }
+.layered-scroll { min-width: 0; min-height: 0; overflow: auto; background: #090d10; }
+.layered-canvas { min-width: 720px; position: relative; padding-top: 29px; }
+.layered-ruler-spacer { position: absolute; z-index: 2; left: 0; top: 0; width: 156px; height: 29px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background: #101519; }
+.layered-ruler { left: 156px; right: 0; top: 0; height: 29px; background: #0d1215; }
+.layered-ruler span { top: 7px; }
+.layered-track { height: 76px; display: grid; grid-template-columns: 156px minmax(500px, 1fr); border-bottom: 1px solid #222a30; }
+.layered-track.selected .layered-track-heading { background: #171522; }
+.layered-track-heading { min-width: 0; padding: 10px 9px 8px 12px; border-right: 1px solid var(--border); background: #101519; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto 1fr; align-items: center; gap: 3px 6px; }
+.layered-track-heading > span { color: var(--green); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.layered-track-heading > strong { grid-column: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.layered-track-heading > div { grid-column: 2; grid-row: 1 / 3; display: grid; gap: 3px; }
+.layered-track-heading button { width: 24px; height: 23px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-2); color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.layered-track-heading button:disabled { opacity: .25; }
+.layered-track-heading svg { width: 13px; }
+.layered-track-lane { position: relative; overflow: hidden; background-color: #0b1013; background-image: linear-gradient(90deg, transparent calc(20% - 1px), #273038 20%); background-size: 20% 100%; }
+.layered-track-lane::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(135deg,transparent 0,transparent 10px,#ffffff05 10px,#ffffff05 11px); }
+.track-drop-hint { position: absolute; inset: 0; display: grid; place-items: center; color: #6f7c84; font-size: 10px; pointer-events: none; }
+.layered-clip { position: absolute; z-index: 1; top: 8px; bottom: 8px; min-width: 46px; overflow: hidden; border: 1px solid #8e72ff; border-radius: 6px; background: linear-gradient(135deg,#302650,#1d1930); box-shadow: 0 5px 15px #0005; display: flex; align-items: stretch; color: var(--text); cursor: grab; }
+.layered-clip:hover { border-color: #b7a7ff; }
+.layered-clip.selected { border-color: var(--green); box-shadow: 0 0 0 2px #42db8044, 0 5px 15px #0006; }
+.layered-clip.disabled { border-style: dashed; border-color: #637078; background: repeating-linear-gradient(135deg,#20272b 0,#20272b 8px,#151a1d 8px,#151a1d 16px); opacity: .72; }
+.layered-clip-copy { min-width: 0; flex: 1; padding: 9px 7px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
+.layered-clip-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.layered-clip-copy small { color: #c5bddc; font: 9px/1.2 monospace; }
+.clip-visibility { width: 24px; display: grid; place-items: center; color: #d7d0ee; pointer-events: none; }
+.clip-visibility svg { width: 13px; }
+.layer-trim-handle { width: 10px; flex: 0 0 10px; position: relative; z-index: 3; background: #6f4bf7; border-inline: 1px solid #b8a7ff; cursor: ew-resize; touch-action: none; }
+.layered-clip.selected .layer-trim-handle { background: var(--green); border-color: #d9ffe7; }
+.layered-playhead { position: absolute; z-index: 8; top: 20px; bottom: 0; width: 1px; background: var(--green); pointer-events: none; }
+.layered-playhead::before { content: ""; position: absolute; top: 0; left: -5px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid var(--green); }
+.layered-playhead span { position: absolute; top: -17px; transform: translateX(-50%); padding: 2px 4px; border-radius: 3px; background: var(--green); color: #07130c; font: 800 9px/1 monospace; }
+.layer-priority-list { display: grid; gap: 5px; margin: 12px 0; }
+.layer-priority-list > div { display: grid; grid-template-columns: 1fr 28px 28px; gap: 4px; }
+.layer-priority-list button { min-width: 0; min-height: 34px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); color: var(--text); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.layer-priority-list button:first-child { padding: 0 8px; }
+.layer-priority-list button:first-child span { color: var(--green); font-size: 9px; font-weight: 800; }
+.layer-priority-list button:first-child strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.layer-priority-list button:first-child small { margin-left: auto; color: var(--muted); font-size: 8px; }
+.layer-priority-list > div.selected button:first-child { border-color: var(--violet); background: #171522; }
+.layer-priority-list svg { width: 13px; }
+.selected-layer-clip { margin: 14px 0; padding: 12px; border: 1px solid var(--border); border-radius: 7px; background: #0d1215; }
+.selected-layer-clip > div:first-child { display: grid; gap: 3px; margin-bottom: 10px; }
+.selected-layer-clip > div:first-child span { color: var(--green); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.selected-layer-clip > div:first-child strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+@media (max-width: 900px) {
+  .center-workspace:has(.layered-timeline) { grid-template-rows: auto minmax(330px, 58vh); }
+  .layered-tools { position: sticky; left: 0; min-width: 700px; }
+  .layered-track { height: 84px; }
+}
