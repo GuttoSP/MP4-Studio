@@ -29,8 +29,8 @@ export function PreviewMonitor({ state, selected, left, right, onTime, onSideDro
   return <section className="monitor" aria-label="Monitor de vídeo">
     <div className="monitor-stage" ref={stage}>
       {state.tab === 'side-by-side' && left && right ? <div className="side-preview" style={{ gridTemplateColumns: `${dividerDraft * 100}% 1fr` }}>{media(left)}{media(right)}</div> : selected ? (
-        selected.kind === 'image' ? <img className="main-media" src={`/api/assets/${selected.id}/content`} alt={selected.name} style={{ transform }} /> :
-          <video className="main-media" ref={video} src={`/api/assets/${selected.id}/content`} poster={`/api/assets/${selected.id}/thumbnail`} preload="metadata" style={{ transform }} onTimeUpdate={(event) => onTime(event.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
+        selected.kind === 'image' ? <img className="main-media" src={`/api/assets/${selected.id}/content`} alt={selected.name} style={{ transform, width: '100%', height: '100%', minWidth: 0, minHeight: 0, objectFit: 'contain' }} /> :
+          <video className="main-media" ref={video} src={`/api/assets/${selected.id}/content`} poster={`/api/assets/${selected.id}/thumbnail`} preload="metadata" style={{ transform, width: '100%', height: '100%', minWidth: 0, minHeight: 0, objectFit: 'contain' }} onTimeUpdate={(event) => onTime(event.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
       ) : <div className="monitor-empty"><FilmFallback /><span>Importe um vídeo para começar</span></div>}
       {state.tab === 'crop' && selected && <CropManipulator crop={state.adjustments.crop} onCommit={(crop) => onCropCommit?.(crop)} />}
       {state.tab === 'side-by-side' && <div className="side-drop-zones">

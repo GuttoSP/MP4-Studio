@@ -100,11 +100,19 @@ export function Timeline({ state, asset, onSeek, onZoom, onAdd, onRemove, onUpda
       >
         <div className="ruler">{markers.map((position) => <span style={{ left: `${position * 100}%` }} key={position}>{clock(duration * position)}</span>)}</div>
         {asset ? <div aria-label="Navegar pelos quadros do vídeo" className="thumbnail-strip" data-status={filmstripStatus} role="button" tabIndex={0}>
-          {frames.map((frame) => <span className="timeline-frame-slot" key={frame.frameIndex}>
-            <span className="timeline-frame" data-testid={`timeline-frame-${frame.frameIndex}`} style={{ aspectRatio: `${frame.width} / ${frame.height}` }}>
-              <img className="timeline-frame-image" src={frame.url} alt={`Quadro em ${clock(frame.time)}`} draggable={false} />
-              <small>{clock(frame.time)}</small>
-            </span>
+          {frames.map((frame) => <span className="timeline-frame-slot" data-testid={`timeline-frame-${frame.frameIndex}`} key={frame.frameIndex}>
+            <img
+              className="timeline-frame-image"
+              src={frame.url}
+              alt={`Quadro em ${clock(frame.time)}`}
+              draggable={false}
+              style={{
+                aspectRatio: `${frame.width} / ${frame.height}`,
+                width: frame.width >= frame.height ? '100%' : 'auto',
+                height: frame.width >= frame.height ? 'auto' : '100%'
+              }}
+            />
+            <small>{clock(frame.time)}</small>
           </span>)}
           {filmstripStatus === 'loading' && <span className="timeline-filmstrip-message">Gerando quadros…</span>}
           {filmstripStatus === 'error' && <span className="timeline-filmstrip-message">Não foi possível carregar os quadros.</span>}

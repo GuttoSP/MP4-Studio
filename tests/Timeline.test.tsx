@@ -42,7 +42,8 @@ describe('Timeline filmstrip', () => {
     await waitFor(() => expect(within(strip).getAllByRole('img')).toHaveLength(3));
     const frames = within(strip).getAllByRole('img');
     expect(frames.map((frame) => frame.getAttribute('src'))).toEqual(['/frames/0', '/frames/1', '/frames/2']);
-    expect(screen.getByTestId('timeline-frame-0')).toHaveStyle({ aspectRatio: '108 / 192' });
+    expect(screen.getByTestId('timeline-frame-0')).toHaveClass('timeline-frame-slot');
+    expect(frames[0]).toHaveStyle({ aspectRatio: '108 / 192', width: 'auto', height: '100%' });
     expect(frames[0]).toHaveClass('timeline-frame-image');
     expect(frames.every((frame) => frame.getAttribute('src') !== `/api/assets/${portraitAsset.id}/thumbnail`)).toBe(true);
   });

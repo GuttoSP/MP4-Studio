@@ -141,13 +141,19 @@ export function createApp(options: AppOptions = {}) {
   app.get('/api/assets/:id/content', (request, response) => {
     const asset = assets.get(String(request.params.id));
     if (!asset) { response.status(404).json({ error: 'Mídia não encontrada.' }); return; }
-    response.type(extname(asset.storedName)).sendFile(resolveInside(editorDataRoot, 'projects', asset.projectId, 'assets', asset.storedName));
+    response.type(extname(asset.storedName)).sendFile(
+      resolveInside(editorDataRoot, 'projects', asset.projectId, 'assets', asset.storedName),
+      { dotfiles: 'allow' }
+    );
   });
 
   app.get('/api/assets/:id/thumbnail', (request, response) => {
     const asset = assets.get(String(request.params.id));
     if (!asset?.thumbnailName) { response.status(404).json({ error: 'Miniatura não encontrada.' }); return; }
-    response.type('jpg').sendFile(resolveInside(editorDataRoot, 'projects', asset.projectId, 'thumbnails', asset.thumbnailName));
+    response.type('jpg').sendFile(
+      resolveInside(editorDataRoot, 'projects', asset.projectId, 'thumbnails', asset.thumbnailName),
+      { dotfiles: 'allow' }
+    );
   });
 
   async function ensureTimelineFrames(assetId: string) {
@@ -198,14 +204,17 @@ export function createApp(options: AppOptions = {}) {
     }
     const frame = timelineThumbnails.list(asset.id).find((candidate) => candidate.frameIndex === frameIndex);
     if (!frame) { response.status(404).json({ error: 'Quadro não encontrado.' }); return; }
-    response.type('jpg').sendFile(resolveInside(
-      editorDataRoot,
-      'projects',
-      asset.projectId,
-      'thumbnails',
-      asset.id,
-      frame.fileName
-    ));
+    response.type('jpg').sendFile(
+      resolveInside(
+        editorDataRoot,
+        'projects',
+        asset.projectId,
+        'thumbnails',
+        asset.id,
+        frame.fileName
+      ),
+      { dotfiles: 'allow' }
+    );
   });
 
   app.get('/api/jobs', (request, response) => {
@@ -264,8 +273,8 @@ export function createApp(options: AppOptions = {}) {
       return;
     }
     const outputPath = resolveInside(editorDataRoot, 'projects', job.projectId, 'renders', job.id, job.outputName);
-    if (request.query.download === '1') response.download(outputPath, job.outputName);
-    else response.sendFile(outputPath);
+    if (request.query.download === '1') response.download(outputPath, job.outputName, { dotfiles: 'allow' });
+    else response.sendFile(outputPath, { dotfiles: 'allow' });
   });
 
   app.patch('/api/projects/:id', (request, response) => {
@@ -298,7 +307,7 @@ export function createApp(options: AppOptions = {}) {
   const dist = resolve(projectRoot, 'dist');
   if (existsSync(dist)) {
     app.use(express.static(dist));
-    app.get('*path', (_request, response) => response.sendFile(resolve(dist, 'index.html')));
+    app.get('*path', (_request, response) => response.sendFile(resolve(dist, 'index.html'), { dotfiles: 'allow' }));
   }
   return app;
 }

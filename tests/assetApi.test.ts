@@ -12,8 +12,10 @@ afterEach(() => cleanup.splice(0).forEach((path) => rmSync(path, { recursive: tr
 
 describe('asset API', () => {
   it('imports, persists and streams an opaque media asset', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'editor-assets-'));
-    cleanup.push(root);
+    const temporaryRoot = mkdtempSync(join(tmpdir(), 'editor-assets-'));
+    const root = join(temporaryRoot, '.isolated-worktree', 'data');
+    mkdirSync(root, { recursive: true });
+    cleanup.push(temporaryRoot);
     const app = createApp({
       databasePath: ':memory:', dataRoot: root,
       mediaTools: { ffmpegPath: 'fake', ffprobePath: 'fake', check: async () => ({ ffmpeg: true, ffprobe: true }) },
