@@ -162,4 +162,58 @@ describe('editorReducer', () => {
     expect(history.present.selectedClipId).toBe('55555555-5555-4555-8555-555555555555');
     expect(history.past).toHaveLength(mutations);
   });
+
+  it('serializes only the visible winners of a layered timeline', () => {
+    const second = {
+      ...asset,
+      id: '22222222-2222-4222-8222-222222222222',
+      name: 'plano-dois.mp4'
+    };
+    const third = {
+      ...asset,
+      id: '33333333-3333-4333-8333-333333333333',
+      name: 'plano-tres.mp4'
+    };
+    let history = createInitialEditorHistory(asset.projectId, [asset, second, third]);
+
+    history = editorReducer(history, {
+      type: 'hydrate',
+      projectId: asset.projectId,
+      assets: [asset, second, third],
+      state: {
+        tab: 'timeline',
+        tracks: [
+          {
+            id: 'track-top', name: 'Principal', clips: [
+              { id: 'clip-top', assetId: asset.id, timelineStart: 0, sourceStart: 0, sourceEnd: 10, enabled: true }
+            ]
+          },
+          {
+            id: 'track-middle', name: 'Cobertura', clips: [
+              { id: 'clip-middle-a', assetId: second.id, timelineStart: 0, sourceStart: 0, sourceEnd: 20, enabled: true },
+              { id: 'clip-middle-gap', assetId: second.id, timelineStart: 20, sourceStart: 20, sourceEnd: 30, enabled: false },
+              { id: 'clip-middle-b', assetId: second.id, timelineStart: 30, sourceStart: 30, sourceEnd: 45, enabled: true }
+            ]
+          },
+          {
+            id: 'track-bottom', name: 'Base', clips: [
+              { id: 'clip-bottom', assetId: third.id, timelineStart: 0, sourceStart: 0, sourceEnd: 45, enabled: true }
+            ]
+          }
+        ],
+        timelineTransition: { type: 'none', duration: 0 }
+      }
+    });
+
+    expect(serializeExport(history.present)).toMatchObject({
+      operation: 'timeline',
+      inputs: [
+        { assetId: asset.id, start: 0, end: 10 },
+        { assetId: second.id, start: 10, end: 20 },
+        { assetId: third.id, start: 20, end: 30 },
+        { assetId: second.id, start: 30, end: 45 }
+      ],
+      transition: { type: 'none', duration: 0 }
+    });
+  });
 });

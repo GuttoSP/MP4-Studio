@@ -1,5 +1,5 @@
-export type EditorOperation = 'cut' | 'merge' | 'side-by-side' | 'frame' | 'gif';
-export type EditorTab = 'cut' | 'merge' | 'side-by-side' | 'crop' | 'frame' | 'gif' | 'adjustments';
+export type EditorOperation = 'cut' | 'timeline' | 'merge' | 'side-by-side' | 'frame' | 'gif';
+export type EditorTab = 'cut' | 'timeline' | 'merge' | 'side-by-side' | 'crop' | 'frame' | 'gif' | 'adjustments';
 export type FitMode = 'contain' | 'cover';
 export type OutputAspect = '16:9' | '9:16' | '1:1' | '4:5';
 export type DurationPolicy = 'shortest' | 'longest';
@@ -63,6 +63,7 @@ export type ExportRequest = {
   sideBySide?: Partial<SideBySideSettings>;
   frame?: Partial<FrameSettings>;
   gif?: Partial<GifSettings>;
+  transition?: Partial<TimelineTransition>;
 };
 
 export type NormalizedExport = {
@@ -74,4 +75,5 @@ export type NormalizedExport = {
   sideBySide: SideBySideSettings;
   frame: FrameSettings;
   gif: GifSettings;
+  transition: TimelineTransition;
 };

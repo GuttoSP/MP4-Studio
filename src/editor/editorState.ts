@@ -1,5 +1,6 @@
 import type { EditorAsset } from '../../shared/types';
-import type { Adjustments, EditorTab, ExportRequest, GifSettings, OutputSettings, SideBySideSettings, TimelineTrack } from '../../shared/editorTypes';
+import type { Adjustments, EditorTab, ExportRequest, GifSettings, OutputSettings, SideBySideSettings, TimelineTrack, TimelineTransition } from '../../shared/editorTypes';
+import { resolveTimeline } from '../../shared/timelineComposition';
 import {
   createDefaultTimelineTracks,
   hydrateTimelineTracks,
@@ -25,6 +26,7 @@ export type EditorState = {
   tracks: TimelineTrack[];
   selectedTrackId: string;
   selectedClipId: string;
+  timelineTransition: TimelineTransition;
   ranges: EditorRange[];
   mergeOrder: string[];
   mergeRanges: Record<string, { start: number; end: number }>;
@@ -53,6 +55,7 @@ export type EditorAction =
   | { type: 'add-timeline-track' }
   | { type: 'rename-timeline-track'; trackId: string; name: string }
   | { type: 'reorder-timeline-track'; trackId: string; direction: -1 | 1 }
+  | { type: 'set-timeline-transition'; value: TimelineTransition }
   | { type: 'set-markers'; markIn: number; markOut: number }
   | { type: 'add-range' }
   | { type: 'remove-range'; id: string }
@@ -83,7 +86,7 @@ function initialState(projectId: string, assets: EditorAsset[]): EditorState {
   const tracks = createDefaultTimelineTracks(assets);
   return {
     projectId, assets, selectedAssetId: selected?.id ?? '', currentTime: 0, timelineZoom: 1, markIn: 0, markOut: selected?.duration ?? 0,
-    tab: 'cut', tracks, selectedTrackId: tracks[0]?.id ?? '', selectedClipId: tracks[0]?.clips[0]?.id ?? '', ranges: [], mergeOrder: videos.map(({ id }) => id),
+    tab: 'cut', tracks, selectedTrackId: tracks[0]?.id ?? '', selectedClipId: tracks[0]?.clips[0]?.id ?? '', timelineTransition: { type: 'none', duration: 0 }, ranges: [], mergeOrder: videos.map(({ id }) => id),
     mergeRanges: Object.fromEntries(videos.map((asset) => [asset.id, { start: 0, end: asset.duration }])),
     sideLeftAssetId: assets[0]?.id ?? '', sideRightAssetId: assets[1]?.id ?? '',
     adjustments: structuredClone(defaultAdjustments), output: { ...defaultOutput }, sideBySide: { ...defaultSide },
@@ -125,6 +128,7 @@ function reduce(state: EditorState, action: Exclude<EditorAction, { type: 'undo'
       tracks,
       selectedTrackId: selectedTrack?.id ?? tracks.find((track) => track.clips.some(({ id }) => id === persistedClip?.id))?.id ?? tracks[0]?.id ?? '',
       selectedClipId: persistedClip?.id ?? tracks[0]?.clips[0]?.id ?? '',
+      timelineTransition: { ...fresh.timelineTransition, ...action.state.timelineTransition },
       ranges: (action.state.ranges ?? fresh.ranges).filter(({ assetId }) => assetIds.has(assetId)),
       mergeOrder,
       mergeRanges: Object.fromEntries(videoIds.map((id) => [id, action.state?.mergeRanges?.[id] ?? fresh.mergeRanges[id]])),
@@ -204,6 +208,7 @@ function reduce(state: EditorState, action: Exclude<EditorAction, { type: 'undo'
     [tracks[index], tracks[target]] = [tracks[target], tracks[index]];
     return { ...state, tracks };
   }
+  if (action.type === 'set-timeline-transition') return { ...state, timelineTransition: action.value };
   if (action.type === 'set-markers') return { ...state, markIn: Math.max(0, action.markIn), markOut: Math.max(0, action.markOut) };
   if (action.type === 'add-range') {
     const asset = selectedAsset(state);
@@ -285,7 +290,14 @@ export function serializeExport(state: EditorState): ExportRequest {
   if (!selected) throw new Error('Selecione uma mídia.');
   let operation: ExportRequest['operation'] = 'cut';
   let inputs: ExportRequest['inputs'] = [];
-  if (state.tab === 'merge') {
+  if (state.tab === 'timeline') {
+    operation = 'timeline';
+    inputs = resolveTimeline(state.tracks, state.assets).map(({ assetId, sourceStart, sourceEnd }) => ({
+      assetId,
+      start: sourceStart,
+      end: sourceEnd
+    }));
+  } else if (state.tab === 'merge') {
     operation = 'merge'; inputs = state.mergeOrder.map((assetId) => ({ assetId, ...state.mergeRanges[assetId] }));
   } else if (state.tab === 'side-by-side') {
     operation = 'side-by-side'; inputs = [state.sideLeftAssetId, state.sideRightAssetId].map((assetId) => { const asset = state.assets.find(({ id }) => id === assetId)!; return { assetId, start: 0, end: asset.duration }; });
@@ -297,5 +309,5 @@ export function serializeExport(state: EditorState): ExportRequest {
     const ranges = state.ranges.filter(({ assetId }) => assetId === selected.id);
     inputs = ranges.length ? ranges.map(({ assetId, start, end }) => ({ assetId, start, end })) : [{ assetId: selected.id, start: 0, end: selected.duration }];
   }
-  return { projectId: state.projectId, operation, inputs, adjustments: state.adjustments, output: state.output, sideBySide: state.sideBySide, frame: { ...state.frame, time: state.currentTime }, gif: state.gif };
+  return { projectId: state.projectId, operation, inputs, adjustments: state.adjustments, output: state.output, sideBySide: state.sideBySide, frame: { ...state.frame, time: state.currentTime }, gif: state.gif, transition: state.timelineTransition };
 }
