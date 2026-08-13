@@ -243,6 +243,11 @@
 .layered-track-lane { position: relative; overflow: hidden; background-color: #0b1013; background-image: linear-gradient(90deg, transparent calc(20% - 1px), #273038 20%); background-size: 20% 100%; }
 .layered-track-lane::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(135deg,transparent 0,transparent 10px,#ffffff05 10px,#ffffff05 11px); }
 .track-drop-hint { position: absolute; inset: 0; display: grid; place-items: center; color: #6f7c84; font-size: 10px; pointer-events: none; }
+.layered-empty { min-height: 152px; padding: 22px; display: grid; place-items: center; align-content: center; gap: 6px; color: var(--muted); text-align: center; }
+.layered-empty > svg { width: 25px; color: var(--violet-soft); }
+.layered-empty > strong { color: var(--text); font-size: 13px; }
+.layered-empty > span { font-size: 10px; }
+.layered-empty > button { margin-top: 5px; min-height: 32px; border: 1px solid var(--violet); border-radius: 5px; padding: 0 11px; background: #171522; color: var(--violet-soft); cursor: pointer; }
 .layered-clip { position: absolute; z-index: 1; top: 8px; bottom: 8px; min-width: 46px; overflow: hidden; border: 1px solid #8e72ff; border-radius: 6px; background: linear-gradient(135deg,#302650,#1d1930); box-shadow: 0 5px 15px #0005; display: flex; align-items: stretch; color: var(--text); cursor: grab; }
 .layered-clip:hover { border-color: #b7a7ff; }
 .layered-clip.selected { border-color: var(--green); box-shadow: 0 0 0 2px #42db8044, 0 5px 15px #0006; }

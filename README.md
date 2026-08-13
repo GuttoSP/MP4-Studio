@@ -6,6 +6,11 @@ Editor de vídeo local e orientado a projetos. A interface é feita em React, os
 
 ## Principais recursos
 
+- timeline multicamadas com prioridade visual: a faixa mais alta visível vence em cada instante;
+- clipes arrastáveis entre faixas, posicionamento livre, divisão, trim pelas bordas, ocultação e remoção;
+- lacunas e trechos ocultos revelam automaticamente o conteúdo das faixas abaixo;
+- faixa **Saída final** e monitor sincronizado mostram exatamente o que será renderizado;
+- transição seca por padrão ou dissolve opcional de 0,25 s, 0,5 s ou 1 s;
 - biblioteca de mídias com importação múltipla e arrastar/soltar;
 - suporte a MP4, WebP animado, WebP estático, PNG e JPEG;
 - preview, transporte, seek e timeline com quadros reais de vários timeframes;
@@ -86,16 +91,20 @@ npm start
 
 1. Crie um projeto.
 2. Importe um ou mais arquivos na coluna **Mídias**.
-3. Selecione uma operação em **Ferramentas**.
-4. Ajuste a timeline, intervalos e parâmetros de saída.
-5. Clique em **Exportar MP4**, **Extrair frame** ou **Exportar GIF**.
-6. Acompanhe o progresso e use **Baixar** quando terminar.
+3. Use **Camadas**, que abre por padrão, ou selecione outra operação em **Ferramentas**.
+4. Em **Camadas**, arraste vídeos da biblioteca para as faixas. A primeira faixa tem a maior prioridade.
+5. Arraste o corpo do clipe para movê-lo; use as alças laterais para aparar; use o olho para ocultar e revelar.
+6. Confira a faixa **Saída final** e escolha corte seco ou dissolve.
+7. Clique em **Exportar MP4**, **Extrair frame** ou **Exportar GIF**.
+8. Acompanhe o progresso e use **Baixar** quando terminar.
+
+O guia [Edição multicamadas](docs/edicao-multicamadas.md) explica prioridade, ocultação, movimentação, trim e exportação com exemplos.
 
 Os arquivos originais nunca são alterados. O aplicativo trabalha com cópias armazenadas no diretório local de dados.
 
 ## Interface móvel
 
-A versão mobile está em desenvolvimento. Monitor, biblioteca horizontal, timeline rolável e inspetor já se reorganizam em 390 × 844, mas a validação ainda encontra overflow horizontal no documento (507 px para uma viewport de 390 px). O ajuste final está registrado na [issue #4](https://github.com/GuttoSP/MP4-Studio/issues/4); até ela ser fechada, o desktop é a experiência recomendada.
+A versão mobile está em desenvolvimento. Monitor, biblioteca horizontal, timeline multicamadas rolável e inspetor já se reorganizam para telas estreitas, mas o arrastar entre faixas ainda é uma experiência prioritariamente desktop. O ajuste final está registrado na [issue #4](https://github.com/GuttoSP/MP4-Studio/issues/4); até ela ser fechada, o desktop é a experiência recomendada.
 
 ![Estado mobile em desenvolvimento, com timeline retrato real](docs/screenshots/09-editor-mobile-roadmap.png)
 
@@ -134,7 +143,7 @@ npm run build
 - frontend de desenvolvimento: `http://127.0.0.1:43170`;
 - API e build de produção: `http://127.0.0.1:43171`.
 
-Os testes de integração geram suas próprias mídias sintéticas e validam corte, mesclagem, lado a lado, frame e GIF usando FFmpeg real.
+Os testes de integração geram suas próprias mídias sintéticas e validam corte, timeline multicamadas, dissolve com áudio, mesclagem, lado a lado, frame e GIF usando FFmpeg real.
 
 ## Privacidade e segurança
 

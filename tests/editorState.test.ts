@@ -24,6 +24,7 @@ describe('editorReducer', () => {
     }]);
     expect(history.present.selectedTrackId).toBe(`track-${asset.id}`);
     expect(history.present.selectedClipId).toBe(`clip-${asset.id}`);
+    expect(history.present.tab).toBe('timeline');
 
     history = editorReducer(history, { type: 'split-timeline-clip', clipId: `clip-${asset.id}`, time: 20 });
     expect(history.present.tracks[0].clips.map(({ sourceStart, sourceEnd }) => [sourceStart, sourceEnd]))
@@ -65,6 +66,7 @@ describe('editorReducer', () => {
     history = editorReducer(history, { type: 'add-range' });
     history = editorReducer(history, { type: 'set-markers', markIn: 2, markOut: 8 });
     history = editorReducer(history, { type: 'add-range' });
+    history = editorReducer(history, { type: 'set-tab', tab: 'cut' });
 
     expect(serializeExport(history.present).inputs.map(({ start, end }) => [start, end]))
       .toEqual([[20, 30], [2, 8]]);

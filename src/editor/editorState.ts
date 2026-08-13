@@ -86,7 +86,7 @@ function initialState(projectId: string, assets: EditorAsset[]): EditorState {
   const tracks = createDefaultTimelineTracks(assets);
   return {
     projectId, assets, selectedAssetId: selected?.id ?? '', currentTime: 0, timelineZoom: 1, markIn: 0, markOut: selected?.duration ?? 0,
-    tab: 'cut', tracks, selectedTrackId: tracks[0]?.id ?? '', selectedClipId: tracks[0]?.clips[0]?.id ?? '', timelineTransition: { type: 'none', duration: 0 }, ranges: [], mergeOrder: videos.map(({ id }) => id),
+    tab: 'timeline', tracks, selectedTrackId: tracks[0]?.id ?? '', selectedClipId: tracks[0]?.clips[0]?.id ?? '', timelineTransition: { type: 'none', duration: 0 }, ranges: [], mergeOrder: videos.map(({ id }) => id),
     mergeRanges: Object.fromEntries(videos.map((asset) => [asset.id, { start: 0, end: asset.duration }])),
     sideLeftAssetId: assets[0]?.id ?? '', sideRightAssetId: assets[1]?.id ?? '',
     adjustments: structuredClone(defaultAdjustments), output: { ...defaultOutput }, sideBySide: { ...defaultSide },

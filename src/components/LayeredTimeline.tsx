@@ -73,6 +73,7 @@ export function LayeredTimeline({ state, dispatch }: Props) {
           framesByAsset={framesByAsset}
           dispatch={dispatch}
         />)}
+        {!state.tracks.length && <div className="layered-empty"><Layers3 /><strong>Nenhuma faixa criada</strong><span>Importe um MP4 e arraste-o para uma faixa.</span><button type="button" onClick={() => dispatch({ type: 'add-timeline-track' })}>Criar primeira faixa</button></div>}
         <div className="resolved-output" aria-label="Saída final resolvida">
           <div className="resolved-output-heading"><span>Composição</span><strong>Saída final</strong></div>
           <div className="resolved-output-lane">{resolved.map((segment) => {
