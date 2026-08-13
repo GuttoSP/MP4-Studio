@@ -8,7 +8,9 @@ Editor de vídeo local e orientado a projetos. A interface é feita em React, os
 
 - biblioteca de mídias com importação múltipla e arrastar/soltar;
 - suporte a MP4, WebP animado, WebP estático, PNG e JPEG;
-- preview, transporte, seek e timeline com miniaturas;
+- preview, transporte, seek e timeline com quadros reais de vários timeframes;
+- thumbs completas na proporção original: retrato continua retrato e paisagem continua paisagem;
+- playhead, zoom, clips, aparadores, crop e divisor lado a lado manipuláveis diretamente;
 - corte por múltiplos trechos, com remoção e reordenação;
 - mesclagem de vídeos com ordem e intervalos independentes;
 - composição lado a lado com proporção, divisor, contain/cover, pan, duração e política de áudio;
@@ -23,7 +25,7 @@ Editor de vídeo local e orientado a projetos. A interface é feita em React, os
 
 ## Galeria de recursos
 
-Cada imagem abaixo foi capturada no aplicativo em execução com uma cena diferente. A galeria alterna entre costa, cidade noturna, café, cachoeiras, flores, montanhas, faíscas e cozinha para deixar claro qual recurso está sendo demonstrado. Os MP4s de demonstração não fazem parte do repositório.
+Cada imagem abaixo foi capturada no aplicativo em execução com MP4s reais. Não há poster repetido para simular a timeline: a QA gerou 12 JPEGs temporais por vídeo e confirmou 12 hashes SHA-256 distintos tanto no clipe 960×540 quanto no clipe 540×960. Os MP4s, recortes, banco e renders de demonstração não fazem parte do repositório.
 
 | Corte e timeline | Mesclar vídeos |
 | --- | --- |
@@ -93,23 +95,19 @@ Os arquivos originais nunca são alterados. O aplicativo trabalha com cópias ar
 
 ## Interface móvel
 
-A compatibilidade total com celulares ainda não está pronta. A validação em 390 × 844 encontrou overflow horizontal no shell; por isso, a captura mobile anterior foi removida e o trabalho está registrado na [issue #4](https://github.com/GuttoSP/MP4-Studio/issues/4). O desktop é a experiência recomendada nesta versão.
+A versão mobile está em desenvolvimento. Monitor, biblioteca horizontal, timeline rolável e inspetor já se reorganizam em 390 × 844, mas a validação ainda encontra overflow horizontal no documento (507 px para uma viewport de 390 px). O ajuste final está registrado na [issue #4](https://github.com/GuttoSP/MP4-Studio/issues/4); até ela ser fechada, o desktop é a experiência recomendada.
+
+![Estado mobile em desenvolvimento, com timeline retrato real](docs/screenshots/09-editor-mobile-roadmap.png)
 
 ## Mídias da galeria
 
-| Captura | Cena usada | Fonte gratuita |
+| Mídia | Uso na galeria | Fonte pública |
 | --- | --- | --- |
-| Corte e timeline | Costa atlântica ao pôr do sol | [Ocean, Sunset, Coastline](https://pixabay.com/videos/ocean-sunset-coastline-drone-174472/) |
-| Mesclar vídeos | Tráfego de uma cidade à noite | [Pixabay #21985](https://pixabay.com/videos/id-21985/) |
-| Lado a lado | Cachoeira verde e faíscas douradas | [Waterfall, Stream, Forest](https://pixabay.com/videos/waterfall-stream-forest-stock-171978/) e [Fire, Sparks, Particles](https://pixabay.com/videos/fire-sparks-particles-firesparks-84469/) |
-| Crop vertical | Cachoeira em floresta no formato vertical | [Waterfall, Trees, Forest](https://pixabay.com/videos/waterfall-trees-forest-autumn-208314/) |
-| Extrair frame | Café sendo preparado | [Pixabay #46989](https://pixabay.com/videos/id-46989/) |
-| Converter para GIF | Campo de flores ao sol | [Pixabay #16453](https://pixabay.com/videos/id-16453/) |
-| Ajustes de saída | Montanhas e nuvens | [Mountains, Clouds, Mountain Landscape](https://pixabay.com/videos/mountains-clouds-mountain-landscape-138276/) |
-| Render concluído | Preparo de alimentos na cozinha | [Cook, Potato, Potatoes](https://pixabay.com/videos/cook-potato-potatoes-food-14421/) |
+| Big Buck Bunny | paisagem 960×540; corte, mesclagem, lado a lado, GIF e render | [trailer MP4 hospedado pelo W3C](https://media.w3.org/2010/05/bunny/trailer.mp4) e [projeto no Blender Studio](https://studio.blender.org/projects/big-buck-bunny/) |
+| Sintel | recorte retrato 540×960; crop, frame, ajustes e mobile | [trailer MP4 hospedado pelo W3C](https://media.w3.org/2010/05/sintel/trailer.mp4) e [projeto no Blender Studio](https://studio.blender.org/projects/sintel/) |
 
-- **Fonte e licença:** todos os vídeos são do Pixabay e estão disponíveis para uso gratuito sob a [Pixabay Content License](https://pixabay.com/service/license-summary/).
-- **Uso neste repositório:** somente os frames visíveis nos screenshots são versionados. Os arquivos MP4, os recortes de QA e o banco SQLite da galeria permanecem fora do Git.
+- **Créditos e licença:** filmes e imagens © Blender Foundation, disponibilizados sob [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/).
+- **Uso neste repositório:** somente os pixels visíveis nos screenshots são versionados. Os arquivos MP4, recortes de QA, JPEGs temporais, banco SQLite e renders permanecem fora do Git.
 
 ## Persistência local
 
@@ -118,7 +116,7 @@ O conteúdo do usuário fica somente na máquina local e não é rastreado pelo 
 ```text
 data/editor-mp4.sqlite3                    banco SQLite
 data/projects/<projeto>/assets             cópias das mídias importadas
-data/projects/<projeto>/thumbnails         miniaturas
+data/projects/<projeto>/thumbnails         poster e filmstrips temporais por mídia
 data/projects/<projeto>/renders            arquivos exportados
 ```
 
