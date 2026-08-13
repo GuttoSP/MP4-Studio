@@ -1,12 +1,13 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditorAsset } from '../shared/types';
 import { LayeredTimeline, TIMELINE_CLIP_MIME } from '../src/components/LayeredTimeline';
+import { api } from '../src/api';
 import { createInitialEditorHistory, type EditorAction } from '../src/editor/editorState';
 
 const first: EditorAsset = {
   id: '11111111-1111-4111-8111-111111111111', projectId: 'p', name: 'principal.mp4',
-  kind: 'video', duration: 10, width: 1920, height: 1080, fps: 30, hasAudio: true, sortOrder: 0
+  kind: 'video', duration: 10, width: 1080, height: 1920, fps: 30, hasAudio: true, sortOrder: 0
 };
 const second: EditorAsset = {
   ...first, id: '22222222-2222-4222-8222-222222222222', name: 'cobertura.mp4', sortOrder: 1
@@ -51,7 +52,7 @@ function state() {
   };
 }
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('LayeredTimeline', () => {
   it('shows stacked priority tracks and active or hidden clips', () => {
@@ -103,5 +104,24 @@ describe('LayeredTimeline', () => {
 
     expect(dispatch).toHaveBeenCalledWith({ type: 'split-timeline-clip', clipId: 'clip-1', time: 2 });
     expect(dispatch).toHaveBeenCalledWith({ type: 'hide-timeline-interval', trackId: 'track-1', start: 1, end: 3 });
+  });
+
+  it('shows only distinct temporal frames inside the clip source interval and keeps portrait aspect', async () => {
+    vi.spyOn(api, 'listTimelineThumbnails').mockImplementation(async (assetId) => ({ frames: assetId === first.id ? [
+      { frameIndex: 0, time: 0, width: 135, height: 240, url: '/frame-0.jpg' },
+      { frameIndex: 1, time: 1, width: 135, height: 240, url: '/frame-1.jpg' },
+      { frameIndex: 2, time: 2, width: 135, height: 240, url: '/frame-2.jpg' },
+      { frameIndex: 3, time: 3, width: 135, height: 240, url: '/frame-3.jpg' },
+      { frameIndex: 4, time: 5, width: 135, height: 240, url: '/outside-interval.jpg' }
+    ] : [] }));
+    render(<LayeredTimeline state={state()} dispatch={vi.fn()} />);
+    const clip = screen.getByRole('button', { name: /principal\.mp4.*visível/i });
+
+    await waitFor(() => expect(within(clip).getAllByRole('img')).toHaveLength(4));
+    const images = within(clip).getAllByRole('img');
+    expect(images.map((image) => image.getAttribute('src'))).toEqual([
+      '/frame-0.jpg', '/frame-1.jpg', '/frame-2.jpg', '/frame-3.jpg'
+    ]);
+    expect(images[0]).toHaveStyle({ aspectRatio: '135 / 240', objectFit: 'contain' });
   });
 });

@@ -247,10 +247,12 @@
 .layered-clip:hover { border-color: #b7a7ff; }
 .layered-clip.selected { border-color: var(--green); box-shadow: 0 0 0 2px #42db8044, 0 5px 15px #0006; }
 .layered-clip.disabled { border-style: dashed; border-color: #637078; background: repeating-linear-gradient(135deg,#20272b 0,#20272b 8px,#151a1d 8px,#151a1d 16px); opacity: .72; }
-.layered-clip-copy { min-width: 0; flex: 1; padding: 9px 7px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
+.layered-clip-filmstrip { position: absolute; z-index: 0; inset: 0 10px; display: flex; align-items: stretch; overflow: hidden; background: #07090b; pointer-events: none; }
+.layered-clip-filmstrip img { display: block; flex: 0 0 auto; width: auto; max-width: none; height: 100%; object-fit: contain; background: #050607; border-right: 1px solid #000; }
+.layered-clip-copy { position: relative; z-index: 2; min-width: 0; flex: 1; padding: 8px 7px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; pointer-events: none; background: linear-gradient(90deg,#100c19db 0,#100c1980 56%,transparent); text-shadow: 0 1px 3px #000; }
 .layered-clip-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .layered-clip-copy small { color: #c5bddc; font: 9px/1.2 monospace; }
-.clip-visibility { width: 24px; display: grid; place-items: center; color: #d7d0ee; pointer-events: none; }
+.clip-visibility { position: relative; z-index: 2; width: 24px; display: grid; place-items: center; color: #d7d0ee; pointer-events: none; background: #100c1988; }
 .clip-visibility svg { width: 13px; }
 .layer-trim-handle { width: 10px; flex: 0 0 10px; position: relative; z-index: 3; background: #6f4bf7; border-inline: 1px solid #b8a7ff; cursor: ew-resize; touch-action: none; }
 .layered-clip.selected .layer-trim-handle { background: var(--green); border-color: #d9ffe7; }

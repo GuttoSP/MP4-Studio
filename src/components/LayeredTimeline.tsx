@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, Layers3, Minus, Plus, Scissors, Trash2 } from 'lucide-react';
 import type { TimelineLayerClip, TimelineTrack } from '../../shared/editorTypes';
-import type { EditorAsset } from '../../shared/types';
+import type { EditorAsset, TimelineThumbnail } from '../../shared/types';
 import { timelineDuration } from '../../shared/timelineComposition';
 import type { EditorAction, EditorState } from '../editor/editorState';
 import { usePointerDrag } from '../hooks/usePointerDrag';
+import { api } from '../api';
 import { ASSET_DRAG_MIME } from './MediaLibrary';
 import { snapTime, timeFromPointer } from './timeline/timelineMath';
 
 export const TIMELINE_CLIP_MIME = 'application/x-mp4-studio-timeline-clip';
+const timelineFrameCache = new Map<string, TimelineThumbnail[]>();
 
 const clock = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(Math.floor(seconds % 60)).padStart(2, '0')}.${String(Math.floor(seconds * 100) % 100).padStart(2, '0')}`;
 
@@ -24,7 +26,26 @@ export function LayeredTimeline({ state, dispatch }: Props) {
   const duration = Math.max(1, timelineDuration(state.tracks));
   const selectedClip = state.tracks.flatMap(({ clips }) => clips).find(({ id }) => id === state.selectedClipId);
   const markers = [0, .2, .4, .6, .8, 1];
+  const [framesByAsset, setFramesByAsset] = useState<Record<string, TimelineThumbnail[]>>({});
+  const videoAssetIds = state.assets.filter(({ kind }) => kind !== 'image').map(({ id }) => id);
+  const videoAssetKey = videoAssetIds.join('|');
   const zoom = (value: number) => dispatch({ type: 'set-timeline-zoom', zoom: Math.min(4, Math.max(1, Number(value.toFixed(2)))) });
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all(videoAssetIds.map(async (assetId) => {
+      const cached = timelineFrameCache.get(assetId);
+      if (cached) return [assetId, cached] as const;
+      try {
+        const { frames } = await api.listTimelineThumbnails(assetId);
+        timelineFrameCache.set(assetId, frames);
+        return [assetId, frames] as const;
+      } catch {
+        return [assetId, []] as const;
+      }
+    })).then((entries) => { if (active) setFramesByAsset(Object.fromEntries(entries)); });
+    return () => { active = false; };
+  }, [videoAssetKey]);
 
   return <section className="timeline layered-timeline" aria-label="Timeline multicamadas">
     <div className="timeline-tools layered-tools">
@@ -48,6 +69,7 @@ export function LayeredTimeline({ state, dispatch }: Props) {
           trackCount={state.tracks.length}
           duration={duration}
           state={state}
+          framesByAsset={framesByAsset}
           dispatch={dispatch}
         />)}
         <div className="layered-playhead" style={{ left: `calc(156px + (100% - 156px) * ${Math.min(duration, state.currentTime) / duration})` }}><span>{clock(state.currentTime)}</span></div>
@@ -56,12 +78,13 @@ export function LayeredTimeline({ state, dispatch }: Props) {
   </section>;
 }
 
-function TrackRow({ track, index, trackCount, duration, state, dispatch }: {
+function TrackRow({ track, index, trackCount, duration, state, framesByAsset, dispatch }: {
   track: TimelineTrack;
   index: number;
   trackCount: number;
   duration: number;
   state: EditorState;
+  framesByAsset: Record<string, TimelineThumbnail[]>;
   dispatch: (action: EditorAction) => void;
 }) {
   const assetsById = new Map(state.assets.map((asset) => [asset.id, asset]));
@@ -99,17 +122,18 @@ function TrackRow({ track, index, trackCount, duration, state, dispatch }: {
         if (asset?.kind === 'video') dispatch({ type: 'place-timeline-clip', trackId: track.id, assetId, timelineStart: dropTime(event, duration, asset.fps) });
       }}
     >
-      {track.clips.map((clip) => <LayerClip key={clip.id} clip={clip} track={track} duration={duration} asset={assetsById.get(clip.assetId)} state={state} dispatch={dispatch} />)}
+      {track.clips.map((clip) => <LayerClip key={clip.id} clip={clip} track={track} duration={duration} asset={assetsById.get(clip.assetId)} frames={framesByAsset[clip.assetId] ?? []} state={state} dispatch={dispatch} />)}
       {!track.clips.length && <span className="track-drop-hint">Arraste um vídeo para esta faixa</span>}
     </div>
   </div>;
 }
 
-function LayerClip({ clip, track, duration, asset, state, dispatch }: {
+function LayerClip({ clip, track, duration, asset, frames, state, dispatch }: {
   clip: TimelineLayerClip;
   track: TimelineTrack;
   duration: number;
   asset?: EditorAsset;
+  frames: TimelineThumbnail[];
   state: EditorState;
   dispatch: (action: EditorAction) => void;
 }) {
@@ -137,6 +161,10 @@ function LayerClip({ clip, track, duration, asset, state, dispatch }: {
     onCommit: (event) => { const time = endValue(event); update({ ...draftRef.current, end: time }); dispatch({ type: 'trim-timeline-clip', clipId: clip.id, edge: 'end', time }); }
   });
   const selected = state.selectedClipId === clip.id;
+  const clipFrames = [...new Map(frames
+    .filter(({ time }) => time >= clip.sourceStart && time < clip.sourceEnd)
+    .sort((left, right) => left.time - right.time)
+    .map((frame) => [frame.time, frame])).values()];
 
   return <div
     role="button"
@@ -150,6 +178,15 @@ function LayerClip({ clip, track, duration, asset, state, dispatch }: {
     onDragStart={(event) => { event.dataTransfer.setData(TIMELINE_CLIP_MIME, clip.id); event.dataTransfer.effectAllowed = 'move'; }}
   >
     <span className="layer-trim-handle start" role="slider" tabIndex={0} aria-label={`Início de ${asset?.name ?? 'clipe'}`} {...startDrag} />
+    <span className="layered-clip-filmstrip" aria-hidden={clipFrames.length === 0}>
+      {clipFrames.map((frame) => <img
+        key={frame.frameIndex}
+        src={frame.url}
+        alt={`Quadro de ${asset?.name ?? 'clipe'} em ${clock(frame.time)}`}
+        draggable={false}
+        style={{ aspectRatio: `${frame.width} / ${frame.height}`, objectFit: 'contain' }}
+      />)}
+    </span>
     <span className="layered-clip-copy"><strong>{asset?.name ?? 'Mídia indisponível'}</strong><small>{clock(clip.sourceStart)} — {clock(clip.sourceEnd)}</small></span>
     <span className="clip-visibility" title={clip.enabled ? 'Visível' : 'Oculto'}>{clip.enabled ? <Eye /> : <EyeOff />}</span>
     <span className="layer-trim-handle end" role="slider" tabIndex={0} aria-label={`Fim de ${asset?.name ?? 'clipe'}`} {...endDrag} />
