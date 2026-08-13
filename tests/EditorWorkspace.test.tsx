@@ -12,6 +12,12 @@ const asset: EditorAsset = {
   id: '11111111-1111-4111-8111-111111111111', projectId: project.id, name: 'oceano.mp4',
   kind: 'video', duration: 45, width: 1920, height: 1080, fps: 30, hasAudio: true, sortOrder: 0
 };
+const coverage: EditorAsset = {
+  ...asset,
+  id: '22222222-2222-4222-8222-222222222222',
+  name: 'cobertura.mp4',
+  sortOrder: 1
+};
 
 afterEach(() => {
   cleanup();
@@ -73,5 +79,30 @@ describe('EditorWorkspace', () => {
       { expectedRevision: 0, tab: 'merge' },
       { expectedRevision: 1, tab: 'crop' }
     ]);
+  });
+
+  it('previews the winning source and mapped source time at the global playhead', () => {
+    const layeredProject: EditorProject = {
+      ...project,
+      state: {
+        tab: 'timeline',
+        currentTime: 3,
+        selectedAssetId: asset.id,
+        tracks: [
+          { id: 'top', name: 'Principal', clips: [
+            { id: 'top-clip', assetId: asset.id, timelineStart: 0, sourceStart: 0, sourceEnd: 2, enabled: true }
+          ] },
+          { id: 'bottom', name: 'Cobertura', clips: [
+            { id: 'bottom-clip', assetId: coverage.id, timelineStart: 0, sourceStart: 5, sourceEnd: 9, enabled: true }
+          ] }
+        ]
+      }
+    };
+    render(<EditorWorkspace initialProject={layeredProject} initialAssets={[asset, coverage]} initialJobs={[]} onBack={vi.fn()} />);
+
+    const preview = screen.getByLabelText('Monitor de vídeo').querySelector('video.main-media') as HTMLVideoElement;
+    expect(preview).toHaveAttribute('src', `/api/assets/${coverage.id}/content`);
+    expect(preview.currentTime).toBe(8);
+    expect(screen.getByText('Em exibição: Cobertura · cobertura.mp4')).toBeVisible();
   });
 });

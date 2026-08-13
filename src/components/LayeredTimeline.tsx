@@ -3,7 +3,7 @@ import type { DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, Layers3, Minus, Plus, Scissors, Trash2 } from 'lucide-react';
 import type { TimelineLayerClip, TimelineTrack } from '../../shared/editorTypes';
 import type { EditorAsset, TimelineThumbnail } from '../../shared/types';
-import { timelineDuration } from '../../shared/timelineComposition';
+import { resolveTimeline, timelineDuration } from '../../shared/timelineComposition';
 import type { EditorAction, EditorState } from '../editor/editorState';
 import { usePointerDrag } from '../hooks/usePointerDrag';
 import { api } from '../api';
@@ -24,6 +24,7 @@ function dropTime(event: DragEvent<HTMLElement>, duration: number, fps: number) 
 
 export function LayeredTimeline({ state, dispatch }: Props) {
   const duration = Math.max(1, timelineDuration(state.tracks));
+  const resolved = resolveTimeline(state.tracks, state.assets);
   const selectedClip = state.tracks.flatMap(({ clips }) => clips).find(({ id }) => id === state.selectedClipId);
   const markers = [0, .2, .4, .6, .8, 1];
   const [framesByAsset, setFramesByAsset] = useState<Record<string, TimelineThumbnail[]>>({});
@@ -72,6 +73,21 @@ export function LayeredTimeline({ state, dispatch }: Props) {
           framesByAsset={framesByAsset}
           dispatch={dispatch}
         />)}
+        <div className="resolved-output" aria-label="Saída final resolvida">
+          <div className="resolved-output-heading"><span>Composição</span><strong>Saída final</strong></div>
+          <div className="resolved-output-lane">{resolved.map((segment) => {
+            const track = state.tracks.find(({ id }) => id === segment.trackId);
+            const asset = state.assets.find(({ id }) => id === segment.assetId);
+            return <button
+              type="button"
+              key={`${segment.clipId}-${segment.timelineStart}`}
+              aria-label={`${track?.name ?? 'Faixa'} · ${asset?.name ?? 'Mídia'} · ${clock(segment.timelineStart)} até ${clock(segment.timelineEnd)}`}
+              title={`${track?.name ?? 'Faixa'} · ${asset?.name ?? 'Mídia'}`}
+              style={{ left: `${segment.timelineStart / duration * 100}%`, width: `${(segment.timelineEnd - segment.timelineStart) / duration * 100}%` }}
+              onClick={() => dispatch({ type: 'set-current-time', time: segment.timelineStart })}
+            ><span>P{state.tracks.findIndex(({ id }) => id === segment.trackId) + 1}</span><strong>{track?.name}</strong></button>;
+          })}</div>
+        </div>
         <div className="layered-playhead" style={{ left: `calc(156px + (100% - 156px) * ${Math.min(duration, state.currentTime) / duration})` }}><span>{clock(state.currentTime)}</span></div>
       </div>
     </div>

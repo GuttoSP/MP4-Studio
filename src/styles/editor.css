@@ -259,6 +259,16 @@
 .layered-playhead { position: absolute; z-index: 8; top: 20px; bottom: 0; width: 1px; background: var(--green); pointer-events: none; }
 .layered-playhead::before { content: ""; position: absolute; top: 0; left: -5px; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid var(--green); }
 .layered-playhead span { position: absolute; top: -17px; transform: translateX(-50%); padding: 2px 4px; border-radius: 3px; background: var(--green); color: #07130c; font: 800 9px/1 monospace; }
+.resolved-output { height: 49px; display: grid; grid-template-columns: 156px minmax(500px, 1fr); border-top: 1px solid #304039; border-bottom: 1px solid #304039; background: #0a110d; }
+.resolved-output-heading { padding: 7px 12px; border-right: 1px solid #304039; display: grid; align-content: center; gap: 2px; }
+.resolved-output-heading span { color: var(--green); font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.resolved-output-heading strong { font-size: 11px; }
+.resolved-output-lane { position: relative; overflow: hidden; background: repeating-linear-gradient(90deg,#0a110d 0,#0a110d calc(20% - 1px),#243129 20%); }
+.resolved-output-lane button { position: absolute; top: 6px; bottom: 6px; min-width: 18px; overflow: hidden; border: 1px solid #4bd78a; border-radius: 4px; padding: 0 6px; background: linear-gradient(135deg,#153622,#10271a); color: #ddffea; display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+.resolved-output-lane button + button { border-left-color: #baffd5; }
+.resolved-output-lane button span { font-size: 8px; font-weight: 900; color: var(--green); }
+.resolved-output-lane button strong { overflow: hidden; text-overflow: ellipsis; font-size: 9px; }
+.timeline-preview-badge { position: absolute; z-index: 15; left: 14px; top: 14px; max-width: calc(100% - 28px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 6px 9px; border: 1px solid #42db8077; border-radius: 5px; background: #08160fdd; color: #dfffea; font-size: 10px; font-weight: 700; pointer-events: none; }
 .layer-priority-list { display: grid; gap: 5px; margin: 12px 0; }
 .layer-priority-list > div { display: grid; grid-template-columns: 1fr 28px 28px; gap: 4px; }
 .layer-priority-list button { min-width: 0; min-height: 34px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); color: var(--text); display: flex; align-items: center; gap: 6px; cursor: pointer; }

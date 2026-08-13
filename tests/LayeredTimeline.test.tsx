@@ -124,4 +124,18 @@ describe('LayeredTimeline', () => {
     ]);
     expect(images[0]).toHaveStyle({ aspectRatio: '135 / 240', objectFit: 'contain' });
   });
+
+  it('shows the resolved output strip with only the topmost visible winner', () => {
+    const layered = state();
+    layered.tracks[0].clips[0].sourceEnd = 2;
+    layered.tracks[1].clips[0].enabled = true;
+    layered.tracks[1].clips[0].timelineStart = 0;
+    render(<LayeredTimeline state={layered} dispatch={vi.fn()} />);
+
+    const output = screen.getByLabelText('Saída final resolvida');
+    expect(within(output).getByText('Saída final')).toBeVisible();
+    expect(within(output).getByRole('button', { name: /principal.*00:00.00.*00:02.00/i })).toBeVisible();
+    expect(within(output).getByRole('button', { name: /cobertura.*00:02.00.*00:04.00/i })).toBeVisible();
+    expect(within(output).getAllByRole('button')).toHaveLength(2);
+  });
 });
