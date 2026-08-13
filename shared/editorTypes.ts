@@ -7,6 +7,26 @@ export type AudioPolicy = 'first' | 'second' | 'mix' | 'none';
 export type Quality = 'high' | 'balanced' | 'compact';
 export type FrameFormat = 'png' | 'jpg' | 'webp';
 
+export type TimelineLayerClip = {
+  id: string;
+  assetId: string;
+  timelineStart: number;
+  sourceStart: number;
+  sourceEnd: number;
+  enabled: boolean;
+};
+export type TimelineTrack = { id: string; name: string; clips: TimelineLayerClip[] };
+export type TimelineTransition = { type: 'none' | 'dissolve'; duration: 0 | 0.25 | 0.5 | 1 };
+export type ResolvedTimelineSegment = {
+  trackId: string;
+  clipId: string;
+  assetId: string;
+  timelineStart: number;
+  timelineEnd: number;
+  sourceStart: number;
+  sourceEnd: number;
+};
+
 export type CropRect = { x: number; y: number; width: number; height: number };
 export type ExportInput = { assetId: string; start: number; end: number };
 export type Adjustments = {
