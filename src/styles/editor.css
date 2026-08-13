@@ -287,6 +287,9 @@
 .selected-layer-clip > div:first-child { display: grid; gap: 3px; margin-bottom: 10px; }
 .selected-layer-clip > div:first-child span { color: var(--green); font-size: 9px; font-weight: 800; text-transform: uppercase; }
 .selected-layer-clip > div:first-child strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+@media (min-width: 901px) {
+  .center-workspace:has(.layered-timeline) { grid-template-rows: minmax(260px, 1fr) minmax(354px, .8fr); }
+}
 @media (max-width: 900px) {
   .center-workspace:has(.layered-timeline) { grid-template-rows: auto minmax(330px, 58vh); }
   .layered-tools { position: sticky; left: 0; min-width: 700px; }

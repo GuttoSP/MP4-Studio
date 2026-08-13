@@ -26,11 +26,19 @@ Editor de vídeo local e orientado a projetos. A interface é feita em React, os
 - fila de render com progresso, cancelamento e download;
 - desfazer/refazer com histórico de 50 edições;
 - salvamento automático e restauração pelo SQLite;
-- interface desktop completa; adaptação mobile está planejada no roadmap.
+- interface desktop completa e layout mobile responsivo; arrastar entre faixas em telas touch segue no roadmap.
 
 ## Galeria de recursos
 
 Cada imagem abaixo foi capturada no aplicativo em execução com MP4s reais. Não há poster repetido para simular a timeline: a QA gerou 12 JPEGs temporais por vídeo e confirmou 12 hashes SHA-256 distintos tanto no clipe 960×540 quanto no clipe 540×960. Os MP4s, recortes, banco e renders de demonstração não fazem parte do repositório.
+
+| Faixa superior vence | Lacuna revela faixa inferior |
+| --- | --- |
+| ![Abertura da faixa superior vence as faixas abaixo](docs/screenshots/10-prioridade-faixa-superior-desktop.png) | ![Trecho oculto da faixa intermediária revela o vídeo retrato inferior](docs/screenshots/11-faixa-inferior-revelada-desktop.png) |
+
+| Cobertura intermediária | Exportação multicamadas concluída |
+| --- | --- |
+| ![Após a abertura a faixa intermediária assume a saída](docs/screenshots/12-cobertura-intermediaria-desktop.png) | ![Dissolve selecionado e render multicamadas concluído](docs/screenshots/13-exportacao-concluida-desktop.png) |
 
 | Corte e timeline | Mesclar vídeos |
 | --- | --- |
@@ -106,14 +114,15 @@ Os arquivos originais nunca são alterados. O aplicativo trabalha com cópias ar
 
 A versão mobile está em desenvolvimento. Monitor, biblioteca horizontal, timeline multicamadas rolável e inspetor já se reorganizam para telas estreitas, mas o arrastar entre faixas ainda é uma experiência prioritariamente desktop. O ajuste final está registrado na [issue #4](https://github.com/GuttoSP/MP4-Studio/issues/4); até ela ser fechada, o desktop é a experiência recomendada.
 
-![Estado mobile em desenvolvimento, com timeline retrato real](docs/screenshots/09-editor-mobile-roadmap.png)
+![Três timelines multicamadas e saída resolvida no layout mobile](docs/screenshots/14-timeline-multicamadas-mobile.png)
 
 ## Mídias da galeria
 
 | Mídia | Uso na galeria | Fonte pública |
 | --- | --- | --- |
 | Big Buck Bunny | paisagem 960×540; corte, mesclagem, lado a lado, GIF e render | [trailer MP4 hospedado pelo W3C](https://media.w3.org/2010/05/bunny/trailer.mp4) e [projeto no Blender Studio](https://studio.blender.org/projects/big-buck-bunny/) |
-| Sintel | recorte retrato 540×960; crop, frame, ajustes e mobile | [trailer MP4 hospedado pelo W3C](https://media.w3.org/2010/05/sintel/trailer.mp4) e [projeto no Blender Studio](https://studio.blender.org/projects/sintel/) |
+| Sintel | paisagem 854×480; cobertura intermediária e troca de prioridade | [trailer MP4 hospedado pelo W3C](https://media.w3.org/2010/05/sintel/trailer.mp4) e [projeto no Blender Studio](https://studio.blender.org/projects/sintel/) |
+| WAI Perspectives — Colors with Good Contrast | recorte retrato 540×960; faixa inferior revelada e mobile | [MP4 e materiais do W3C WAI](https://media.w3.org/wai/perspective-videos/) |
 
 - **Créditos e licença:** filmes e imagens © Blender Foundation, disponibilizados sob [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/).
 - **Uso neste repositório:** somente os pixels visíveis nos screenshots são versionados. Os arquivos MP4, recortes de QA, JPEGs temporais, banco SQLite e renders permanecem fora do Git.
