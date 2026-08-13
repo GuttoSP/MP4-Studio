@@ -10,6 +10,28 @@ const asset: EditorAsset = {
 };
 
 describe('editorReducer', () => {
+  it('initializes stable layered tracks and records structural edits in undo history', () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValueOnce('22222222-2222-4222-8222-222222222222');
+    let history = createInitialEditorHistory(asset.projectId, [asset]);
+
+    expect(history.present.tracks).toEqual([{
+      id: `track-${asset.id}`,
+      name: 'Faixa 1',
+      clips: [{
+        id: `clip-${asset.id}`, assetId: asset.id, timelineStart: 0,
+        sourceStart: 0, sourceEnd: 45, enabled: true
+      }]
+    }]);
+    expect(history.present.selectedTrackId).toBe(`track-${asset.id}`);
+    expect(history.present.selectedClipId).toBe(`clip-${asset.id}`);
+
+    history = editorReducer(history, { type: 'split-timeline-clip', clipId: `clip-${asset.id}`, time: 20 });
+    expect(history.present.tracks[0].clips.map(({ sourceStart, sourceEnd }) => [sourceStart, sourceEnd]))
+      .toEqual([[0, 20], [20, 45]]);
+    expect(history.past).toHaveLength(1);
+    history = editorReducer(history, { type: 'undo' });
+    expect(history.present.tracks[0].clips).toHaveLength(1);
+  });
   it('persists timeline zoom as one undoable edit', () => {
     let history = createInitialEditorHistory(asset.projectId, [asset]);
     history = editorReducer(history, { type: 'set-timeline-zoom', zoom: 2.5 });
@@ -97,5 +119,47 @@ describe('editorReducer', () => {
     expect(history.present.mergeRanges[imported.id]).toEqual({ start: 0, end: 12 });
     expect(history.present.markOut).toBe(12);
     expect(history.present.adjustments.speed).toBe(1.25);
+  });
+
+  it('routes layered clip edits through undoable reducer actions', () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('33333333-3333-4333-8333-333333333333')
+      .mockReturnValueOnce('44444444-4444-4444-8444-444444444444');
+    let history = createInitialEditorHistory(asset.projectId, [asset]);
+
+    history = editorReducer(history, { type: 'add-timeline-track' });
+    history = editorReducer(history, { type: 'rename-timeline-track', trackId: '33333333-3333-4333-8333-333333333333', name: 'Cobertura' });
+    history = editorReducer(history, { type: 'place-timeline-clip', trackId: '33333333-3333-4333-8333-333333333333', assetId: asset.id, timelineStart: 50 });
+    history = editorReducer(history, { type: 'trim-timeline-clip', clipId: '44444444-4444-4444-8444-444444444444', edge: 'end', time: 60 });
+    history = editorReducer(history, { type: 'move-timeline-clip', clipId: '44444444-4444-4444-8444-444444444444', trackId: `track-${asset.id}`, timelineStart: 46 });
+    history = editorReducer(history, { type: 'set-timeline-clip-enabled', clipId: '44444444-4444-4444-8444-444444444444', enabled: false });
+
+    expect(history.present.tracks[0].clips[1]).toMatchObject({
+      id: '44444444-4444-4444-8444-444444444444', timelineStart: 46, sourceStart: 0, sourceEnd: 10, enabled: false
+    });
+    expect(history.past.length).toBeGreaterThanOrEqual(6);
+
+    history = editorReducer(history, { type: 'remove-timeline-clip', clipId: '44444444-4444-4444-8444-444444444444' });
+    expect(history.present.tracks[0].clips.map(({ id }) => id)).toEqual([`clip-${asset.id}`]);
+    history = editorReducer(history, { type: 'reorder-timeline-track', trackId: '33333333-3333-4333-8333-333333333333', direction: -1 });
+    expect(history.present.tracks.map(({ id }) => id)).toEqual(['33333333-3333-4333-8333-333333333333', `track-${asset.id}`]);
+  });
+
+  it('hides a marked interval and keeps selection out of undo history', () => {
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('55555555-5555-4555-8555-555555555555')
+      .mockReturnValueOnce('66666666-6666-4666-8666-666666666666');
+    let history = createInitialEditorHistory(asset.projectId, [asset]);
+    history = editorReducer(history, {
+      type: 'hide-timeline-interval',
+      trackId: `track-${asset.id}`,
+      start: 20,
+      end: 30
+    });
+    expect(history.present.tracks[0].clips.map(({ enabled }) => enabled)).toEqual([true, false, true]);
+    const mutations = history.past.length;
+    history = editorReducer(history, { type: 'select-timeline-clip', trackId: `track-${asset.id}`, clipId: '55555555-5555-4555-8555-555555555555' });
+    expect(history.present.selectedClipId).toBe('55555555-5555-4555-8555-555555555555');
+    expect(history.past).toHaveLength(mutations);
   });
 });

@@ -1,5 +1,16 @@
 import type { EditorAsset } from '../../shared/types';
-import type { Adjustments, EditorTab, ExportRequest, GifSettings, OutputSettings, SideBySideSettings } from '../../shared/editorTypes';
+import type { Adjustments, EditorTab, ExportRequest, GifSettings, OutputSettings, SideBySideSettings, TimelineTrack } from '../../shared/editorTypes';
+import {
+  createDefaultTimelineTracks,
+  hydrateTimelineTracks,
+  moveTimelineClip,
+  placeTimelineClip,
+  removeTimelineClip,
+  setTimelineClipEnabled,
+  setTimelineIntervalEnabled,
+  splitTimelineClip,
+  trimTimelineClip
+} from './timelineEditing';
 
 export type EditorRange = { id: string; assetId: string; start: number; end: number };
 export type EditorState = {
@@ -11,6 +22,9 @@ export type EditorState = {
   markIn: number;
   markOut: number;
   tab: EditorTab;
+  tracks: TimelineTrack[];
+  selectedTrackId: string;
+  selectedClipId: string;
   ranges: EditorRange[];
   mergeOrder: string[];
   mergeRanges: Record<string, { start: number; end: number }>;
@@ -28,6 +42,17 @@ export type EditorAction =
   | { type: 'select-asset'; assetId: string }
   | { type: 'set-current-time'; time: number }
   | { type: 'set-timeline-zoom'; zoom: number }
+  | { type: 'split-timeline-clip'; clipId: string; time: number }
+  | { type: 'hide-timeline-interval'; trackId: string; start: number; end: number }
+  | { type: 'set-timeline-clip-enabled'; clipId: string; enabled: boolean }
+  | { type: 'remove-timeline-clip'; clipId: string }
+  | { type: 'trim-timeline-clip'; clipId: string; edge: 'start' | 'end'; time: number }
+  | { type: 'move-timeline-clip'; clipId: string; trackId: string; timelineStart: number }
+  | { type: 'place-timeline-clip'; trackId: string; assetId: string; timelineStart: number }
+  | { type: 'select-timeline-clip'; trackId: string; clipId: string }
+  | { type: 'add-timeline-track' }
+  | { type: 'rename-timeline-track'; trackId: string; name: string }
+  | { type: 'reorder-timeline-track'; trackId: string; direction: -1 | 1 }
   | { type: 'set-markers'; markIn: number; markOut: number }
   | { type: 'add-range' }
   | { type: 'remove-range'; id: string }
@@ -55,9 +80,10 @@ const defaultSide: SideBySideSettings = { aspect: '16:9', divider: 0.5, leftFit:
 function initialState(projectId: string, assets: EditorAsset[]): EditorState {
   const selected = assets.find((asset) => asset.kind !== 'image') ?? assets[0];
   const videos = assets.filter((asset) => asset.kind !== 'image');
+  const tracks = createDefaultTimelineTracks(assets);
   return {
     projectId, assets, selectedAssetId: selected?.id ?? '', currentTime: 0, timelineZoom: 1, markIn: 0, markOut: selected?.duration ?? 0,
-    tab: 'cut', ranges: [], mergeOrder: videos.map(({ id }) => id),
+    tab: 'cut', tracks, selectedTrackId: tracks[0]?.id ?? '', selectedClipId: tracks[0]?.clips[0]?.id ?? '', ranges: [], mergeOrder: videos.map(({ id }) => id),
     mergeRanges: Object.fromEntries(videos.map((asset) => [asset.id, { start: 0, end: asset.duration }])),
     sideLeftAssetId: assets[0]?.id ?? '', sideRightAssetId: assets[1]?.id ?? '',
     adjustments: structuredClone(defaultAdjustments), output: { ...defaultOutput }, sideBySide: { ...defaultSide },
@@ -83,6 +109,9 @@ function reduce(state: EditorState, action: Exclude<EditorAction, { type: 'undo'
     const selectedAssetId = persistedSelection ? action.state.selectedAssetId! : fresh.selectedAssetId;
     const sideLeftAssetId = action.state.sideLeftAssetId && assetIds.has(action.state.sideLeftAssetId) ? action.state.sideLeftAssetId : fresh.sideLeftAssetId;
     const sideRightAssetId = action.state.sideRightAssetId && assetIds.has(action.state.sideRightAssetId) ? action.state.sideRightAssetId : fresh.sideRightAssetId;
+    const tracks = hydrateTimelineTracks(action.state.tracks, action.assets);
+    const persistedClip = tracks.flatMap(({ clips }) => clips).find(({ id }) => id === action.state?.selectedClipId);
+    const selectedTrack = tracks.find(({ id }) => id === action.state?.selectedTrackId && (!persistedClip || id === tracks.find((track) => track.clips.some(({ id: clipId }) => clipId === persistedClip.id))?.id));
     return {
       ...fresh,
       ...action.state,
@@ -93,6 +122,9 @@ function reduce(state: EditorState, action: Exclude<EditorAction, { type: 'undo'
       timelineZoom: Math.min(4, Math.max(1, action.state.timelineZoom ?? fresh.timelineZoom)),
       markIn: persistedSelection ? action.state.markIn ?? fresh.markIn : fresh.markIn,
       markOut: persistedSelection ? action.state.markOut ?? fresh.markOut : fresh.markOut,
+      tracks,
+      selectedTrackId: selectedTrack?.id ?? tracks.find((track) => track.clips.some(({ id }) => id === persistedClip?.id))?.id ?? tracks[0]?.id ?? '',
+      selectedClipId: persistedClip?.id ?? tracks[0]?.clips[0]?.id ?? '',
       ranges: (action.state.ranges ?? fresh.ranges).filter(({ assetId }) => assetIds.has(assetId)),
       mergeOrder,
       mergeRanges: Object.fromEntries(videoIds.map((id) => [id, action.state?.mergeRanges?.[id] ?? fresh.mergeRanges[id]])),
@@ -113,6 +145,65 @@ function reduce(state: EditorState, action: Exclude<EditorAction, { type: 'undo'
   }
   if (action.type === 'set-current-time') return { ...state, currentTime: Math.max(0, action.time) };
   if (action.type === 'set-timeline-zoom') return { ...state, timelineZoom: Math.min(4, Math.max(1, action.zoom)) };
+  if (action.type === 'split-timeline-clip') {
+    const tracks = splitTimelineClip(state.tracks, action.clipId, action.time);
+    return tracks === state.tracks ? state : { ...state, tracks };
+  }
+  if (action.type === 'hide-timeline-interval') {
+    const tracks = setTimelineIntervalEnabled(state.tracks, action.trackId, action.start, action.end, false);
+    return tracks === state.tracks ? state : { ...state, tracks };
+  }
+  if (action.type === 'set-timeline-clip-enabled') {
+    const tracks = setTimelineClipEnabled(state.tracks, action.clipId, action.enabled);
+    return tracks === state.tracks ? state : { ...state, tracks };
+  }
+  if (action.type === 'remove-timeline-clip') {
+    const tracks = removeTimelineClip(state.tracks, action.clipId);
+    if (tracks === state.tracks) return state;
+    const selectedClipId = state.selectedClipId === action.clipId ? tracks.flatMap(({ clips }) => clips)[0]?.id ?? '' : state.selectedClipId;
+    const selectedTrackId = tracks.find((track) => track.clips.some(({ id }) => id === selectedClipId))?.id ?? state.selectedTrackId;
+    return { ...state, tracks, selectedClipId, selectedTrackId };
+  }
+  if (action.type === 'trim-timeline-clip') {
+    const tracks = trimTimelineClip(state.tracks, action.clipId, action.edge, action.time, state.assets);
+    return tracks === state.tracks ? state : { ...state, tracks };
+  }
+  if (action.type === 'move-timeline-clip') {
+    const tracks = moveTimelineClip(state.tracks, action.clipId, action.trackId, action.timelineStart, state.assets);
+    return tracks === state.tracks ? state : { ...state, tracks, selectedTrackId: action.trackId, selectedClipId: action.clipId };
+  }
+  if (action.type === 'place-timeline-clip') {
+    const asset = state.assets.find(({ id }) => id === action.assetId);
+    if (!asset) return state;
+    const tracks = placeTimelineClip(state.tracks, action.trackId, asset, action.timelineStart);
+    if (tracks === state.tracks) return state;
+    const previous = new Set(state.tracks.flatMap(({ clips }) => clips.map(({ id }) => id)));
+    const selectedClipId = tracks.flatMap(({ clips }) => clips).find(({ id }) => !previous.has(id))?.id ?? state.selectedClipId;
+    return { ...state, tracks, selectedTrackId: action.trackId, selectedClipId };
+  }
+  if (action.type === 'select-timeline-clip') {
+    const track = state.tracks.find(({ id }) => id === action.trackId);
+    return track?.clips.some(({ id }) => id === action.clipId)
+      ? { ...state, selectedTrackId: track.id, selectedClipId: action.clipId }
+      : state;
+  }
+  if (action.type === 'add-timeline-track') {
+    const id = crypto.randomUUID();
+    return { ...state, tracks: [...state.tracks, { id, name: `Faixa ${state.tracks.length + 1}`, clips: [] }], selectedTrackId: id, selectedClipId: '' };
+  }
+  if (action.type === 'rename-timeline-track') {
+    const name = action.name.trim();
+    if (!name || !state.tracks.some(({ id }) => id === action.trackId)) return state;
+    return { ...state, tracks: state.tracks.map((track) => track.id === action.trackId ? { ...track, name } : track) };
+  }
+  if (action.type === 'reorder-timeline-track') {
+    const index = state.tracks.findIndex(({ id }) => id === action.trackId);
+    const target = index + action.direction;
+    if (index < 0 || target < 0 || target >= state.tracks.length) return state;
+    const tracks = [...state.tracks];
+    [tracks[index], tracks[target]] = [tracks[target], tracks[index]];
+    return { ...state, tracks };
+  }
   if (action.type === 'set-markers') return { ...state, markIn: Math.max(0, action.markIn), markOut: Math.max(0, action.markOut) };
   if (action.type === 'add-range') {
     const asset = selectedAsset(state);
@@ -175,7 +266,7 @@ function reduce(state: EditorState, action: Exclude<EditorAction, { type: 'undo'
   return state;
 }
 
-const transient = new Set<EditorAction['type']>(['hydrate', 'select-asset', 'set-current-time', 'set-markers', 'set-tab']);
+const transient = new Set<EditorAction['type']>(['hydrate', 'select-asset', 'select-timeline-clip', 'set-current-time', 'set-markers', 'set-tab']);
 
 export function editorReducer(history: EditorHistory, action: EditorAction): EditorHistory {
   if (action.type === 'undo') {
